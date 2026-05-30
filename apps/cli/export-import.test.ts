@@ -1,5 +1,6 @@
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -150,11 +151,11 @@ describe("tokenops snapshot CLI", () => {
       try {
         const address = app.server.address();
         if (!address || typeof address === "string") throw new Error("expected TCP listener address");
-        const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission", "--require-provider", "mock"], dbPath)) as {
+        const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission"], dbPath)) as {
           passed: boolean;
           ready: { ready: boolean };
           models: { object: string; data: Array<{ id: string }> };
-          basic: { passed: boolean; exactCacheObserved: boolean; requiredProviderObserved: boolean; providerObserved: string };
+          basic: { passed: boolean; exactCacheObserved: boolean };
           admission?: { passed: boolean; shedObserved: boolean; foregroundAdmitted: boolean };
         };
 
@@ -164,8 +165,6 @@ describe("tokenops snapshot CLI", () => {
         expect(result.models.data.some((model) => model.id === "gpt-5-mini")).toBe(true);
         expect(result.basic.passed).toBe(true);
         expect(result.basic.exactCacheObserved).toBe(true);
-        expect(result.basic.providerObserved).toBe("mock");
-        expect(result.basic.requiredProviderObserved).toBe(true);
         expect(result.admission?.passed).toBe(true);
         expect(result.admission?.shedObserved).toBe(true);
         expect(result.admission?.foregroundAdmitted).toBe(true);
@@ -173,6 +172,51 @@ describe("tokenops snapshot CLI", () => {
         await app.close();
       }
     });
+  });
+
+  it("checks required provider in HTTP gateway smoke", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-provider-smoke-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    let chatCalls = 0;
+    const server = createServer((req, res) => {
+      res.setHeader("content-type", "application/json");
+      if (req.method === "GET" && req.url === "/health") return res.end(JSON.stringify({ ok: true }));
+      if (req.method === "GET" && req.url === "/ready") return res.end(JSON.stringify({ ready: true }));
+      if (req.method === "GET" && req.url === "/v1/models") return res.end(JSON.stringify({ object: "list", data: [{ id: "gpt-5-mini" }] }));
+      if (req.method === "GET" && req.url === "/stats") return res.end(JSON.stringify({ requests: chatCalls }));
+      if (req.method === "GET" && req.url === "/runtime/stats") return res.end(JSON.stringify({ scheduler: { admitted: chatCalls } }));
+      if (req.method === "GET" && req.url === "/cache/stats") return res.end(JSON.stringify({ exact: { hits: Math.max(0, chatCalls - 1) } }));
+      if (req.method === "POST" && req.url === "/v1/chat/completions") {
+        chatCalls += 1;
+        return res.end(JSON.stringify({
+          object: "chat.completion",
+          choices: [{ message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+          tokenops: {
+            provider: "groq",
+            trace_id: `tr_fake_${chatCalls}`,
+            cache: { exactHit: chatCalls === 3 },
+            runtime: { coalesced: false, stats: { scheduler: { admitted: chatCalls } } },
+          },
+        }));
+      }
+      res.statusCode = 404;
+      res.end(JSON.stringify({ error: "not found" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("expected TCP listener address");
+      const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--require-provider", "groq"], dbPath)) as {
+        passed: boolean;
+        basic: { providerObserved: string; requiredProvider: string; requiredProviderObserved: boolean };
+      };
+      expect(result.passed).toBe(true);
+      expect(result.basic.providerObserved).toBe("groq");
+      expect(result.basic.requiredProvider).toBe("groq");
+      expect(result.basic.requiredProviderObserved).toBe(true);
+    } finally {
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
   });
 
   it("prints product demo readiness as JSON", () => {
