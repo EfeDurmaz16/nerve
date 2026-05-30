@@ -2,6 +2,7 @@ import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenop
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
+import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
 import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
 import { cheapThenVerify } from "@tokenops/verifier";
@@ -42,6 +43,7 @@ export interface ReadinessBenchmarkReport {
     providerFallback: ProviderFallbackProof;
     verifierGate: VerifierGateProof;
     policyControls: PolicyControlsProof;
+    cacheSafety: CacheSafetyProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -88,6 +90,14 @@ export interface PolicyControlsProof {
   reason: string;
 }
 
+export interface CacheSafetyProof {
+  safeDocsCacheability: string;
+  riskyPrivateCacheability: string;
+  safePrompt: string;
+  riskyPrompt: string;
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -121,6 +131,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const providerFallback = await buildProviderFallbackProof();
   const verifierGate = await buildVerifierGateProof();
   const policyControls = buildPolicyControlsProof();
+  const cacheSafety = buildCacheSafetyProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -136,6 +147,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
+    semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -162,6 +174,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       providerFallback,
       verifierGate,
       policyControls,
+      cacheSafety,
       groqThroughput,
     },
     passed,
@@ -197,6 +210,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
+    `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     "",
     "## Gates",
     "",
@@ -207,6 +221,26 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildCacheSafetyProof(): CacheSafetyProof {
+  const safePrompt = "What does the documentation say about the quickstart and cache setup?";
+  const riskyPrompt = "Use this private secret token to wire a payment from my account.";
+  const safe = normalizeChatCompletionRequest({
+    model: "gpt-5-mini",
+    messages: [{ role: "user", content: safePrompt }],
+  }, { provider: "mock", workloadType: "docs_qa", riskLevel: "low" });
+  const risky = normalizeChatCompletionRequest({
+    model: "gpt-5.5",
+    messages: [{ role: "user", content: riskyPrompt }],
+  }, { provider: "mock", workloadType: "high_risk_action", riskLevel: "high" });
+  return {
+    safeDocsCacheability: classifyCacheability(safe),
+    riskyPrivateCacheability: classifyCacheability(risky),
+    safePrompt,
+    riskyPrompt,
+    reason: "semantic cache is allowed for safe documentation Q&A and blocked for private/payment/secret workloads",
+  };
 }
 
 function buildPolicyControlsProof(): PolicyControlsProof {

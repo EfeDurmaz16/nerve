@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:23:32.090Z",
+  "generatedAt": "2026-05-30T15:26:18.715Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -8,8 +8,8 @@
     "optimizedCostUsd": 0.00569,
     "estimatedReplayCostReductionPct": 95.5,
     "runtimeAvoidedProviderCalls": 4,
-    "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 24000,
+    "batchingLatencyReductionPct": 0.8,
+    "mockOutputTokensPerSecond": 20571.43,
     "groqLiveMeasured": false
   },
   "evidence": {
@@ -152,12 +152,12 @@
       "concurrency": 6,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 19,
+      "wallTimeMs": 21,
       "providerCalls": 8,
       "coalescedResponses": 4,
       "avoidedProviderCalls": 4,
-      "p50LatencyMs": 9,
-      "p95LatencyMs": 10,
+      "p50LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 6,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 132,
-      "batchedWallTimeMs": 18,
-      "estimatedLatencyReduction": 0.8636,
+      "batchedWallTimeMs": 20,
+      "estimatedLatencyReduction": 0.8485,
       "batches": 2,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -210,15 +210,15 @@
       "skipped": false,
       "requests": 6,
       "concurrency": 3,
-      "wallTimeMs": 6,
+      "wallTimeMs": 7,
       "providerCalls": 6,
       "totalInputTokens": 240,
       "totalOutputTokens": 144,
       "totalTokens": 384,
-      "outputTokensPerSecond": 24000,
-      "totalTokensPerSecond": 64000,
+      "outputTokensPerSecond": 20571.43,
+      "totalTokensPerSecond": 54857.14,
       "p50LatencyMs": 3,
-      "p95LatencyMs": 3,
+      "p95LatencyMs": 4,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -314,6 +314,13 @@
       },
       "repeatedTraceCount": 6,
       "reason": "budget firewall blocks over-cap requests and loop limiter blocks repeated agent prompts before more compute is burned"
+    },
+    "cacheSafety": {
+      "safeDocsCacheability": "semantic_safe",
+      "riskyPrivateCacheability": "never_cache",
+      "safePrompt": "What does the documentation say about the quickstart and cache setup?",
+      "riskyPrompt": "Use this private secret token to wire a payment from my account.",
+      "reason": "semantic cache is allowed for safe documentation Q&A and blocked for private/payment/secret workloads"
     }
   },
   "passed": {
@@ -327,6 +334,7 @@
     "providerFallbackSurvivesPrimaryFailure": true,
     "verifierGateEscalatesFailedCheapAnswer": true,
     "policyControlsBlockWastefulCompute": true,
+    "semanticCacheSafetyBlocksRiskyPrivateWorkloads": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [
