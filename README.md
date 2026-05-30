@@ -108,6 +108,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile ./provider-usage.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts traces export --format otel --out ./tokenops-spans.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-benchmarks 100 --keep-idempotency 1000
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load-shedding
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
@@ -115,7 +116,9 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --conc
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo --json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts serve
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare groq
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare openai
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval
@@ -144,11 +147,13 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops traces export --format otel [--out file]`
 - `tokenops prune --keep-traces <n> --keep-benchmarks <n> --keep-idempotency <n>`
 - `tokenops load`
+- `tokenops load-shedding`
 - `tokenops batch`
 - `tokenops failover`
 - `tokenops throughput [mock|ollama|groq]`
 - `tokenops proof`
 - `tokenops doctor`
+- `tokenops gateway smoke [--url http://127.0.0.1:8787] [--admission]`
 - `tokenops stats`
 - `tokenops trace <id>`
 - `tokenops cache stats`
@@ -170,7 +175,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops compare groq`
 - `tokenops compare openai`
 - `tokenops smoke ollama`
-- `tokenops demo`
+- `tokenops demo [--json]`
 
 ## Benchmark Example
 
@@ -260,6 +265,40 @@ This writes:
 - `docs/experiments/tokenops-product-readiness.md`
 
 The report combines replay savings, runtime coalescing, micro-batching, mock throughput, optional live Groq throughput, pass/fail gates, and known gaps.
+
+Product demo summary:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo --json
+```
+
+The TokenOps demo summarizes replay savings, exact/semantic cache safety,
+provider SLO routing, provider arbitrage, verifier escalation, policy blocks,
+AIS foreground/background planning, runtime priority scheduling, load shedding,
+and could-have-been-cheaper analyzer output.
+
+HTTP gateway smoke, against a running gateway:
+
+```bash
+TOKENOPS_PORT=8787 pnpm --filter @nerve/server start
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787
+```
+
+For HTTP-level admission-control proof, start with a constrained local runtime
+and include `--admission`:
+
+```bash
+TOKENOPS_PROVIDER=mock \
+TOKENOPS_MOCK_DELAY_MS=40 \
+TOKENOPS_MAX_CONCURRENT_INFERENCE=1 \
+TOKENOPS_MAX_INFERENCE_QUEUE=1 \
+pnpm --filter @nerve/server start
+
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
+  --url http://127.0.0.1:8787 \
+  --admission
+```
 
 Safety/eval gates:
 
@@ -422,6 +461,29 @@ Every approved patch is reflected in the next `/compile-task` response. **The co
 ---
 
 ## Quickstart (90 seconds, no API keys needed)
+
+For TokenOps, the fastest proof is:
+
+```bash
+pnpm install
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo --json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof
+```
+
+Start the OpenAI-compatible gateway when you want to connect a client:
+
+```bash
+TOKENOPS_PORT=8787 pnpm --filter @nerve/server start
+```
+
+Then use:
+
+```bash
+OPENAI_BASE_URL=http://127.0.0.1:8787/v1
+```
+
+The legacy Nerve learning-loop demo is still available:
 
 ```bash
 pnpm install
