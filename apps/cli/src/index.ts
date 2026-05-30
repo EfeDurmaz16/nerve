@@ -20,6 +20,7 @@ import {
   runCheapThenVerifyBenchmark,
   runLoadBenchmark,
   runProviderFailoverBenchmark,
+  runProviderSloBenchmark,
   runProviderThroughputBenchmark,
   runReadinessBenchmark,
   runSemanticCacheSafetyBenchmark,
@@ -62,6 +63,7 @@ usage:
   tokenops budget status                 show budget endpoint hint
   tokenops routing policy                learn and print routing policy from local traces
   tokenops routing slo                   learn and print provider SLO policy from local traces
+  tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
   tokenops providers health              score provider health from local traces
   tokenops verify eval [--dataset file]  run verifier eval harness
   tokenops verify routing [dataset]      run cheap-then-verify routing eval
@@ -119,6 +121,7 @@ async function main() {
     if (cmd === "budget" && argv[1] === "status") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/budget/status`);
     if (cmd === "routing" && argv[1] === "policy") return cmdTokenOpsRoutingPolicy();
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
+    if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
     if (cmd === "verify" && argv[1] === "routing") return cmdTokenOpsVerifyRouting(argv.slice(2));
@@ -306,6 +309,12 @@ function cmdTokenOpsRoutingSlo() {
     maxAverageCostUsd: Number(process.env.TOKENOPS_SLO_MAX_AVERAGE_COST_USD ?? Number.MAX_SAFE_INTEGER),
   });
   console.log(JSON.stringify(policy, null, 2));
+}
+
+function cmdTokenOpsRoutingSloBenchmark() {
+  const result = runProviderSloBenchmark();
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.passed) process.exit(1);
 }
 
 function cmdTokenOpsProvidersHealth() {

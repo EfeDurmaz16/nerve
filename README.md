@@ -109,6 +109,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts smoke ollama
 ```
@@ -134,6 +135,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops budget status`
 - `tokenops routing policy`
 - `tokenops routing slo`
+- `tokenops routing slo-benchmark`
 - `tokenops providers health`
 - `tokenops verify eval`
 - `tokenops verify eval --dataset <jsonl>`
@@ -242,6 +244,14 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/ver
 
 `cache eval` runs adversarial semantic-cache cases and reports false unsafe hits and safe misses. `verify routing` runs cheap-then-verify regression cases and reports expected escalations, false escalations, and missed escalations.
 
+Provider SLO routing benchmark:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
+```
+
+This generates synthetic provider traces where Groq violates the local SLO window and mock remains eligible, then proves the router reroutes from `groq` to `mock`.
+
 Local setup doctor:
 
 ```bash
@@ -295,6 +305,7 @@ Production-like:
 - provider failure traces with redaction for common API key and authorization formats
 - inference runtime with concurrency admission, bounded queueing, provider circuit breaker, provider timeout aborts, and in-flight request coalescing
 - rolling SLO routing policy from local traces, with error-rate, p95 latency, and average cost thresholds
+- SLO rerouting benchmark that proves unhealthy providers are avoided when an eligible fallback exists
 - first-class `providerLatencyMs` in TokenOps request traces for SLO routing and provider health
 - tests and typecheck
 

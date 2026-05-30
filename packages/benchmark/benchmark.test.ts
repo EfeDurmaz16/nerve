@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -127,6 +127,16 @@ describe("TokenOps benchmark", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("measures provider SLO routing away from unhealthy providers", () => {
+    const result = runProviderSloBenchmark();
+    expect(result.originalProvider).toBe("groq");
+    expect(result.selectedProvider).toBe("mock");
+    expect(result.unhealthyProviderEligible).toBe(false);
+    expect(result.fallbackProviderEligible).toBe(true);
+    expect(result.rerouted).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
   it("summarizes product readiness evidence across replay, runtime, and provider benchmarks", async () => {
     const report = await runReadinessBenchmark({
       loadRequests: 12,
@@ -149,6 +159,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.adaptiveRouting.baseRoute.selectedModel).toBe("gpt-5.5");
     expect(report.evidence.adaptiveRouting.learnedRoute.selectedModel).toBe("gpt-5-mini");
     expect(report.passed.adaptiveRoutingDowngradesFromTraceEvidence).toBe(true);
+    expect(report.evidence.providerSlo.rerouted).toBe(true);
+    expect(report.evidence.providerSlo.selectedProvider).toBe("mock");
+    expect(report.passed.providerSloRoutingAvoidsUnhealthyProviders).toBe(true);
     expect(report.evidence.providerFallback.selectedProvider).toBe("mock");
     expect(report.evidence.providerFallback.failedProviders).toEqual(["groq"]);
     expect(report.passed.providerFallbackSurvivesPrimaryFailure).toBe(true);

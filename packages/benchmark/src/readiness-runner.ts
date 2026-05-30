@@ -13,6 +13,7 @@ import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
 import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } from "./failover-runner.js";
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
+import { runProviderSloBenchmark, type ProviderSloBenchmarkResult } from "./provider-slo-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
 import { runSemanticCacheSafetyBenchmark, type SemanticSafetyBenchmarkResult } from "./semantic-safety-runner.js";
 import { runCheapThenVerifyBenchmark, type CheapThenVerifyBenchmarkResult } from "./verifier-routing-runner.js";
@@ -47,6 +48,7 @@ export interface ReadinessBenchmarkReport {
     providerFailover: ProviderFailoverBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
+    providerSlo: ProviderSloBenchmarkResult;
     providerFallback: ProviderFallbackProof;
     verifierGate: VerifierGateProof;
     verifierRouting: CheapThenVerifyBenchmarkResult;
@@ -184,6 +186,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     })
     : undefined;
   const adaptiveRouting = buildAdaptiveRoutingProof();
+  const providerSlo = runProviderSloBenchmark();
   const providerFallback = await buildProviderFallbackProof();
   const verifierGate = await buildVerifierGateProof();
   const verifierRouting = await runCheapThenVerifyBenchmark("benchmark/evals/cheap-then-verify.jsonl");
@@ -211,6 +214,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       providerFailover.failedResponses === 0,
     mockThroughputMeasured: !mockThroughput.skipped && mockThroughput.outputTokensPerSecond > 0,
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
+    providerSloRoutingAvoidsUnhealthyProviders: providerSlo.passed && providerSlo.rerouted && providerSlo.selectedProvider === "mock",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     verifierRoutingEvalPasses: verifierRouting.passed && verifierRouting.expectedEscalations > 0 && verifierRouting.missedEscalations === 0,
@@ -251,6 +255,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       providerFailover,
       mockThroughput,
       adaptiveRouting,
+      providerSlo,
       providerFallback,
       verifierGate,
       verifierRouting,
@@ -294,6 +299,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Groq live measured: ${report.summary.groqLiveMeasured}`,
     `- Adaptive routing route: ${report.evidence.adaptiveRouting.baseRoute.selectedModel} -> ${report.evidence.adaptiveRouting.learnedRoute.selectedModel}`,
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
+    `- Provider SLO routing: ${report.evidence.providerSlo.originalProvider} -> ${report.evidence.providerSlo.selectedProvider}, p95=${report.evidence.providerSlo.unhealthyProviderP95LatencyMs}ms`,
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     `- Verifier routing eval: ${report.evidence.verifierRouting.actualEscalations}/${report.evidence.verifierRouting.expectedEscalations} expected escalations, missed=${report.evidence.verifierRouting.missedEscalations}`,

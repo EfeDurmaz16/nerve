@@ -146,7 +146,10 @@ Print the learned routing policy from local traces:
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 ```
+
+`routing slo-benchmark` uses synthetic provider traces to verify that an unhealthy provider is rerouted to an eligible fallback.
 
 Print provider health from local traces:
 
