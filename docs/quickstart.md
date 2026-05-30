@@ -219,6 +219,14 @@ pnpm --filter @nerve/server start
 
 These controls run before provider execution. Budget and quota blocks return an explainable error and still write a TokenOps trace. Provider errors also write a trace and return `x-tokenops-trace-id`.
 
+For rollout analysis, shadow budget enforcement without blocking inference:
+
+```bash
+TOKENOPS_POLICY_MODE=shadow \
+TOKENOPS_MAX_REQUEST_COST_USD=0.01 \
+pnpm --filter @nerve/server start
+```
+
 Inspect policy state:
 
 ```bash

@@ -184,8 +184,10 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       policy: budgetPolicyFromEnv(request),
       spentTodayUsd: spentTodayUsd(tracesForPolicy, request),
     });
+    const policyShadow = budgetPolicyShadow(policy);
+    const effectivePolicy = policyShadow?.effective ?? policy;
     let route = {
-      ...routeModel({ request, workloadType: profile.workloadType, complexity, riskLevel: profile.riskLevel, budgetAction: policy.action === "downgrade" ? "downgrade" : "allow" }),
+      ...routeModel({ request, workloadType: profile.workloadType, complexity, riskLevel: profile.riskLevel, budgetAction: effectivePolicy.action === "downgrade" ? "downgrade" : "allow" }),
       selectedProvider: providerName,
     };
     if (process.env.TOKENOPS_ADAPTIVE_ROUTING === "1") {
@@ -213,7 +215,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
 
     const quota = dailyQuotaDecision(tracesForPolicy, request);
     if (!quota.allowed) {
-      const blockedPolicy = { action: "block" as const, allowed: false, reason: quota.reason, budgetRemaining: policy.budgetRemaining };
+      const blockedPolicy = { action: "block" as const, allowed: false, reason: quota.reason, budgetRemaining: effectivePolicy.budgetRemaining };
       const blockedPlan = planCompute({
         request,
         exactHit: false,
@@ -231,7 +233,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
 
     const rateLimit = checkRateLimit(rateBuckets, request);
     if (!rateLimit.allowed) {
-      const blockedPolicy = { action: "block" as const, allowed: false, reason: rateLimit.reason, budgetRemaining: policy.budgetRemaining };
+      const blockedPolicy = { action: "block" as const, allowed: false, reason: rateLimit.reason, budgetRemaining: effectivePolicy.budgetRemaining };
       const blockedPlan = planCompute({
         request,
         exactHit: false,
@@ -249,7 +251,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
 
     const loop = agentLoopDecision(tracesForPolicy, request);
     if (!loop.allowed) {
-      const blockedPolicy = { action: "block" as const, allowed: false, reason: loop.reason, budgetRemaining: policy.budgetRemaining };
+      const blockedPolicy = { action: "block" as const, allowed: false, reason: loop.reason, budgetRemaining: effectivePolicy.budgetRemaining };
       const blockedPlan = planCompute({
         request,
         exactHit: false,
@@ -280,15 +282,15 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       semanticHit,
       prefixCacheEligibleTokens: prefix.cachedPrefixEligibleTokens,
       route,
-      policy,
+      policy: effectivePolicy,
       expectedCostUsd: optimizedCost.totalCostUsd,
       riskLevel: profile.riskLevel,
     });
 
-    if (!policy.allowed) {
-      const trace = buildTrace({ request, route, policy, exactHit, semanticHit, contextBlockHit: contextObservation.hit, prefixTokens: prefix.cachedPrefixEligibleTokens, baselineCost: baselineCost.totalCostUsd, optimizedCost: 0, outputTokens: 0, source: "blocked", computePlanId: plan.requestId });
+    if (!effectivePolicy.allowed) {
+      const trace = buildTrace({ request, route, policy: effectivePolicy, exactHit, semanticHit, contextBlockHit: contextObservation.hit, prefixTokens: prefix.cachedPrefixEligibleTokens, baselineCost: baselineCost.totalCostUsd, optimizedCost: 0, outputTokens: 0, source: "blocked", computePlanId: plan.requestId });
       state.traceStore.insert(trace);
-      return reply.code(402).send({ error: { message: policy.reason, type: "budget_policy_block" }, tokenops: { trace_id: trace.id, compute_plan: plan } });
+      return reply.code(402).send({ error: { message: effectivePolicy.reason, type: "budget_policy_block" }, tokenops: { trace_id: trace.id, compute_plan: plan } });
     }
 
     let runtimeCoalesced = false;
@@ -303,7 +305,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
         runtimeCoalesced = runtimeResult.coalesced;
         response = runtimeResult.value;
       } catch (e) {
-        const errorPolicy = { action: "block" as const, allowed: false, reason: `provider error: ${(e as Error).message}`, budgetRemaining: policy.budgetRemaining };
+        const errorPolicy = { action: "block" as const, allowed: false, reason: `provider error: ${(e as Error).message}`, budgetRemaining: effectivePolicy.budgetRemaining };
         const trace = buildTrace({
           request,
           route,
@@ -341,7 +343,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     const trace = buildTrace({
       request,
       route: effectiveRoute,
-      policy,
+      policy: effectivePolicy,
       exactHit,
       semanticHit,
       contextBlockHit: contextObservation.hit,
@@ -362,7 +364,19 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       return reply.send(toOpenAIChatCompletionStream(response));
     }
     const completion = toOpenAIChatCompletion(request, response);
-    const body = { ...completion, tokenops: { ...completion.tokenops, trace_id: trace.id, compute_plan: plan, cache: trace.cache, routing: trace.routing, policy: trace.policy, runtime: { coalesced: runtimeCoalesced, stats: runtime.stats() } } };
+    const body = {
+      ...completion,
+      tokenops: {
+        ...completion.tokenops,
+        trace_id: trace.id,
+        compute_plan: plan,
+        cache: trace.cache,
+        routing: trace.routing,
+        policy: trace.policy,
+        ...(policyShadow ? { policy_shadow: { mode: "shadow", decision: policyShadow.observed } } : {}),
+        runtime: { coalesced: runtimeCoalesced, stats: runtime.stats() },
+      },
+    };
     if (idemKey) {
       insertTokenOpsIdempotencyRecord(db, {
         route: "/v1/chat/completions",
@@ -657,6 +671,23 @@ function budgetPolicyFromPartial(input?: Partial<BudgetPolicy>): BudgetPolicy {
     max_model: typeof input.max_model === "string" ? input.max_model : base.max_model,
     allow_expensive_models: typeof input.allow_expensive_models === "boolean" ? input.allow_expensive_models : base.allow_expensive_models,
     block_on_budget_exceeded: typeof input.block_on_budget_exceeded === "boolean" ? input.block_on_budget_exceeded : base.block_on_budget_exceeded,
+  };
+}
+
+function budgetPolicyShadow(policy: ReturnType<typeof evaluateBudgetPolicy>): {
+  observed: ReturnType<typeof evaluateBudgetPolicy>;
+  effective: ReturnType<typeof evaluateBudgetPolicy>;
+} | null {
+  if (process.env.TOKENOPS_POLICY_MODE !== "shadow" && process.env.TOKENOPS_BUDGET_POLICY_MODE !== "shadow") return null;
+  if (policy.allowed) return null;
+  return {
+    observed: policy,
+    effective: {
+      ...policy,
+      action: "allow",
+      allowed: true,
+      reason: `shadow mode: would have ${policy.action}; ${policy.reason}`,
+    },
   };
 }
 

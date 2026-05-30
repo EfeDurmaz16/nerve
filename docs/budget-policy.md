@@ -20,6 +20,7 @@ TOKENOPS_MAX_REQUEST_COST_USD=0.01
 TOKENOPS_DAILY_BUDGET_USD=2
 TOKENOPS_BUDGET_WARN_THRESHOLD=0.8
 TOKENOPS_BLOCK_ON_BUDGET_EXCEEDED=true
+TOKENOPS_POLICY_MODE=shadow
 TOKENOPS_MAX_REQUESTS_PER_USER_PER_DAY=100
 TOKENOPS_MAX_REQUESTS_PER_AGENT_PER_DAY=200
 TOKENOPS_RATE_LIMIT_PER_MINUTE=30
@@ -31,6 +32,8 @@ Budget, quota, rate-limit, and loop-limit decisions run before provider executio
 `GET /budget/status` returns the active local policy, estimated spend from the trace ledger, quota settings, and rate-limit settings.
 
 `GET /rate-limit/status` returns the local in-memory limiter state for the current gateway process.
+
+Set `TOKENOPS_POLICY_MODE=shadow` to observe budget would-block decisions without blocking provider execution. In shadow mode, the API response includes `tokenops.policy_shadow`, and the trace policy reason records the would-block decision. Quota, rate-limit, and agent-loop blocks still enforce live.
 
 ## Policy Simulation
 

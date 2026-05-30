@@ -427,6 +427,29 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("records would-block budget decisions in policy shadow mode without blocking inference", async () => {
+    await withEnv({ TOKENOPS_PROVIDER: "mock", TOKENOPS_MAX_REQUEST_COST_USD: "0.000001", TOKENOPS_POLICY_MODE: "shadow" }, async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: {
+          model: "gpt-5.5",
+          max_tokens: 512,
+          messages: [{ role: "user", content: "Summarize this long enterprise policy document with enough detail to cost money." }],
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().tokenops.policy.allowed).toBe(true);
+      expect(res.json().tokenops.policy_shadow.decision.allowed).toBe(false);
+      expect(res.json().tokenops.policy_shadow.decision.reason).toContain("max_request_cost_usd");
+      const trace = (await app.inject({ method: "GET", url: `/traces/${res.headers["x-tokenops-trace-id"]}` })).json();
+      expect(trace.policy.allowed).toBe(true);
+      expect(trace.policy.reason).toContain("shadow mode");
+      await app.close();
+    });
+  });
+
   it("enforces daily user request quota before inference", async () => {
     await withEnv({ TOKENOPS_PROVIDER: "mock", TOKENOPS_MAX_REQUESTS_PER_USER_PER_DAY: "1" }, async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
