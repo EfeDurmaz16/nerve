@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T18:36:28.283Z
+Generated: 2026-05-30T18:45:04.011Z
 
 ## Summary
 
@@ -23,7 +23,8 @@ Generated: 2026-05-30T18:36:28.283Z
 - Verifier routing eval: 3/3 expected escalations, missed=0
 - Policy controls: budget block, loop block
 - Cache safety: docs semantic_safe, risky never_cache
-- Semantic safety eval: 6 cases, unsafe hits=0, safe misses=0
+- Semantic safety eval: 12 cases, unsafe hits=0, safe misses=0
+- Semantic threshold sweep: recommended=0.2, thresholds=5
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
 - Gateway compatibility: chat.completion + response + embeddings(4d), usage=true, tokenops=true
 - Trace ledger: 2 traces, savings=$0.018
@@ -47,6 +48,7 @@ Generated: 2026-05-30T18:36:28.283Z
 - policyControlsBlockWastefulCompute: true
 - semanticCacheSafetyBlocksRiskyPrivateWorkloads: true
 - semanticCacheAdversarialEvalPasses: true
+- semanticThresholdSweepFindsSafeThreshold: true
 - cheaperAnalyzerFindsAvoidableCompute: true
 - openAICompatibleGatewayShape: true
 - traceLedgerRecordsCostAndCacheEvidence: true
@@ -57,6 +59,6 @@ Generated: 2026-05-30T18:36:28.283Z
 ## Gaps
 
 - Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.
-- Semantic cache correctness is heuristic and needs larger adversarial evals before production use.
+- Semantic cache correctness is heuristic; threshold sweep exists, but the adversarial corpus still needs production-scale expansion.
 - Provider usage reconciliation supports JSONL ingestion; direct provider invoice API ingestion is not implemented.
 - Hosted multi-tenant auth, deployment, dashboards, and enterprise controls are intentionally out of scope for this local prototype.

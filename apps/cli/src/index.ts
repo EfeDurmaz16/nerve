@@ -24,6 +24,7 @@ import {
   runProviderThroughputBenchmark,
   runReadinessBenchmark,
   runSemanticCacheSafetyBenchmark,
+  runSemanticCacheThresholdSweep,
 } from "@tokenops/benchmark";
 import type { BudgetPolicy, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import { formatOtelSpansJsonl, providerHealthReport, reconcileProviderUsage, SqliteTraceStore, type ProviderUsageRecord, exportTracesAsOtelSpans } from "@tokenops/ledger";
@@ -362,9 +363,11 @@ async function cmdTokenOpsDemo() {
 
 async function cmdTokenOpsCacheEval(args: string[]) {
   const dataset = args[0] ?? "benchmark/evals/semantic-cache-safety.jsonl";
-  const result = await runSemanticCacheSafetyBenchmark(dataset);
+  const result = args.includes("--sweep")
+    ? await runSemanticCacheThresholdSweep(dataset, thresholdArgs(args))
+    : await runSemanticCacheSafetyBenchmark(dataset);
   console.log(JSON.stringify(result, null, 2));
-  if (!result.passed) process.exit(1);
+  if ("passed" in result ? !result.passed : !result.recommended) process.exit(1);
 }
 
 function cmdTokenOpsRoutingPolicy() {
@@ -647,6 +650,13 @@ function boolArg(args: string[], name: string, fallback: boolean): boolean {
   const value = getOpt(args, name);
   if (value === undefined) return fallback;
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+function thresholdArgs(args: string[]): number[] {
+  const raw = getOpt(args, "--thresholds");
+  if (!raw) return [0.2, 0.3, 0.4, 0.5, 0.7];
+  const values = raw.split(",").map((value) => Number(value.trim())).filter((value) => Number.isFinite(value));
+  return values.length > 0 ? values : [0.3];
 }
 
 function readProviderUsageJsonl(path: string): ProviderUsageRecord[] {

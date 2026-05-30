@@ -122,6 +122,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
@@ -152,7 +153,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops trace <id>`
 - `tokenops cache stats`
 - `tokenops cache clear`
-- `tokenops cache eval [dataset]`
+- `tokenops cache eval [dataset] [--sweep --thresholds 0.2,0.3,0.5]`
 - `tokenops analyze`
 - `tokenops analyze --trace <id>`
 - `tokenops budget status`
@@ -263,11 +264,12 @@ Safety/eval gates:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
 ```
 
-`cache eval` runs adversarial semantic-cache cases and reports false unsafe hits and safe misses. `verify routing` runs cheap-then-verify regression cases and reports expected escalations, false escalations, and missed escalations.
+`cache eval` runs adversarial semantic-cache cases and reports false unsafe hits and safe misses. The sweep mode compares thresholds and recommends the safest threshold that preserves safe reuse on the local corpus. `verify routing` runs cheap-then-verify regression cases and reports expected escalations, false escalations, and missed escalations.
 
 Provider SLO routing benchmark:
 
@@ -334,6 +336,7 @@ Production-like:
 - verifier eval harness with confusion metrics
 - cheap-then-verify routing benchmark with false/missed escalation counts
 - semantic-cache safety eval with adversarial cache-reuse fixtures
+- semantic-cache threshold sweep for local safety/recall tradeoff checks
 - env-configurable max request cost, daily budget, daily user/agent quota, per-minute rate limit, and agent loop limiter
 - budget policy shadow mode for would-block rollout analysis
 - provider failure traces with redaction for common API key and authorization formats

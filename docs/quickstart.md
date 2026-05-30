@@ -179,9 +179,10 @@ Run semantic-cache safety eval:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5
 ```
 
-`verify routing` checks cheap-then-verify escalation behavior. `cache eval` checks adversarial semantic-cache reuse cases and fails on unsafe cache hits or safe cache misses.
+`verify routing` checks cheap-then-verify escalation behavior. `cache eval` checks adversarial semantic-cache reuse cases and fails on unsafe cache hits or safe cache misses. Sweep mode compares thresholds and reports the recommended local threshold for the corpus.
 
 Print the learned routing policy from local traces:
 

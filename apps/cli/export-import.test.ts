@@ -103,6 +103,19 @@ describe("tokenops snapshot CLI", () => {
     expect(span.traceId).toBe("tr_otel_cli");
     expect(span.attributes["tokenops.cost.optimized_usd"]).toBe(0.000028);
   });
+
+  it("runs semantic cache threshold sweep from the CLI", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-cache-sweep-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+
+    const result = JSON.parse(execTokenOps(["cache", "eval", "benchmark/evals/semantic-cache-safety.jsonl", "--sweep", "--thresholds", "0.2,0.3,0.5"], dbPath)) as {
+      thresholds: unknown[];
+      recommendedThreshold: number | null;
+    };
+
+    expect(result.thresholds).toHaveLength(3);
+    expect(result.recommendedThreshold).not.toBeNull();
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -114,6 +114,16 @@ describe("TokenOps benchmark", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("sweeps semantic cache thresholds and recommends a safe threshold", async () => {
+    const result = await runSemanticCacheThresholdSweep("benchmark/evals/semantic-cache-safety.jsonl", [0.2, 0.3, 0.5]);
+
+    expect(result.thresholds).toHaveLength(3);
+    expect(result.recommendedThreshold).toBeGreaterThanOrEqual(0.2);
+    expect(result.recommendedThreshold).toBeLessThanOrEqual(0.5);
+    expect(result.recommended?.falsePositiveUnsafeHits).toBe(0);
+    expect(result.recommended?.passed).toBe(true);
+  });
+
   it("measures runtime circuit-breaker failover to fallback providers", async () => {
     const result = await runProviderFailoverBenchmark({
       requests: 8,
@@ -196,6 +206,8 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.semanticSafety.falsePositiveUnsafeHits).toBe(0);
     expect(report.evidence.semanticSafety.falseNegativeSafeMisses).toBe(0);
     expect(report.passed.semanticCacheAdversarialEvalPasses).toBe(true);
+    expect(report.evidence.semanticThresholdSweep.recommendedThreshold).not.toBeNull();
+    expect(report.passed.semanticThresholdSweepFindsSafeThreshold).toBe(true);
     expect(report.evidence.cheaperAnalyzer.insightCount).toBeGreaterThanOrEqual(2);
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("overkill_model");
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("prefix_cache");

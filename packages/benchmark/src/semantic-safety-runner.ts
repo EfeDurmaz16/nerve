@@ -26,6 +26,7 @@ export interface SemanticSafetyCaseResult {
 
 export interface SemanticSafetyBenchmarkResult {
   dataset: string;
+  threshold: number;
   totalCases: number;
   safeReuseAttempts: number;
   safeReuseHits: number;
@@ -37,12 +38,20 @@ export interface SemanticSafetyBenchmarkResult {
   passed: boolean;
 }
 
-export async function runSemanticCacheSafetyBenchmark(datasetPath: string): Promise<SemanticSafetyBenchmarkResult> {
+export interface SemanticThresholdSweepResult {
+  dataset: string;
+  thresholds: SemanticSafetyBenchmarkResult[];
+  recommendedThreshold: number | null;
+  recommended: SemanticSafetyBenchmarkResult | null;
+}
+
+export async function runSemanticCacheSafetyBenchmark(datasetPath: string, opts: { threshold?: number } = {}): Promise<SemanticSafetyBenchmarkResult> {
   const cases = readJsonl(datasetPath);
   const results: SemanticSafetyCaseResult[] = [];
+  const threshold = opts.threshold ?? 0.3;
 
   for (const testCase of cases) {
-    const cache = new SemanticCache(0.3);
+    const cache = new SemanticCache(threshold);
     const seed = normalizeOpenAIChatRequest(testCase.seed);
     const probe = normalizeOpenAIChatRequest(testCase.probe);
     const response: ModelResponse = {
@@ -81,6 +90,7 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string): Prom
 
   return {
     dataset: datasetPath,
+    threshold,
     totalCases: results.length,
     safeReuseAttempts: safeCases.length,
     safeReuseHits: safeCases.filter((result) => result.hit).length,
@@ -90,6 +100,23 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string): Prom
     falseNegativeSafeMisses,
     cases: results,
     passed: results.length > 0 && falsePositiveUnsafeHits === 0 && falseNegativeSafeMisses === 0 && results.every((result) => result.passed),
+  };
+}
+
+export async function runSemanticCacheThresholdSweep(
+  datasetPath: string,
+  thresholds = [0.2, 0.3, 0.4, 0.5, 0.7],
+): Promise<SemanticThresholdSweepResult> {
+  const results = await Promise.all(thresholds.map((threshold) => runSemanticCacheSafetyBenchmark(datasetPath, { threshold })));
+  const candidates = results
+    .filter((result) => result.falsePositiveUnsafeHits === 0 && result.passed)
+    .sort((a, b) => b.safeReuseHits - a.safeReuseHits || a.threshold - b.threshold);
+  const recommended = candidates[0] ?? null;
+  return {
+    dataset: datasetPath,
+    thresholds: results,
+    recommendedThreshold: recommended?.threshold ?? null,
+    recommended,
   };
 }
 

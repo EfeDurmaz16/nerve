@@ -15,7 +15,7 @@ import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } fr
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderSloBenchmark, type ProviderSloBenchmarkResult } from "./provider-slo-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
-import { runSemanticCacheSafetyBenchmark, type SemanticSafetyBenchmarkResult } from "./semantic-safety-runner.js";
+import { runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep, type SemanticSafetyBenchmarkResult, type SemanticThresholdSweepResult } from "./semantic-safety-runner.js";
 import { runCheapThenVerifyBenchmark, type CheapThenVerifyBenchmarkResult } from "./verifier-routing-runner.js";
 
 export interface ReadinessBenchmarkOptions {
@@ -55,6 +55,7 @@ export interface ReadinessBenchmarkReport {
     policyControls: PolicyControlsProof;
     cacheSafety: CacheSafetyProof;
     semanticSafety: SemanticSafetyBenchmarkResult;
+    semanticThresholdSweep: SemanticThresholdSweepResult;
     cheaperAnalyzer: CheaperAnalyzerProof;
     gatewayCompatibility: GatewayCompatibilityProof;
     traceLedger: TraceLedgerProof;
@@ -200,6 +201,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const policyControls = buildPolicyControlsProof();
   const cacheSafety = buildCacheSafetyProof();
   const semanticSafety = await runSemanticCacheSafetyBenchmark("benchmark/evals/semantic-cache-safety.jsonl");
+  const semanticThresholdSweep = await runSemanticCacheThresholdSweep("benchmark/evals/semantic-cache-safety.jsonl");
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
   const gatewayCompatibility = buildGatewayCompatibilityProof();
   const traceLedger = buildTraceLedgerProof();
@@ -229,6 +231,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     semanticCacheAdversarialEvalPasses: semanticSafety.passed && semanticSafety.falsePositiveUnsafeHits === 0 && semanticSafety.falseNegativeSafeMisses === 0,
+    semanticThresholdSweepFindsSafeThreshold: Boolean(semanticThresholdSweep.recommended && semanticThresholdSweep.recommended.falsePositiveUnsafeHits === 0),
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
     openAICompatibleGatewayShape:
       gatewayCompatibility.object === "chat.completion" &&
@@ -281,6 +284,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       policyControls,
       cacheSafety,
       semanticSafety,
+      semanticThresholdSweep,
       cheaperAnalyzer,
       gatewayCompatibility,
       traceLedger,
@@ -291,7 +295,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     passed,
     gaps: [
       "Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.",
-      "Semantic cache correctness is heuristic and needs larger adversarial evals before production use.",
+      "Semantic cache correctness is heuristic; threshold sweep exists, but the adversarial corpus still needs production-scale expansion.",
       "Provider usage reconciliation supports JSONL ingestion; direct provider invoice API ingestion is not implemented.",
       "Hosted multi-tenant auth, deployment, dashboards, and enterprise controls are intentionally out of scope for this local prototype.",
     ],
@@ -326,6 +330,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Semantic safety eval: ${report.evidence.semanticSafety.totalCases} cases, unsafe hits=${report.evidence.semanticSafety.falsePositiveUnsafeHits}, safe misses=${report.evidence.semanticSafety.falseNegativeSafeMisses}`,
+    `- Semantic threshold sweep: recommended=${report.evidence.semanticThresholdSweep.recommendedThreshold}, thresholds=${report.evidence.semanticThresholdSweep.thresholds.length}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject} + embeddings(${report.evidence.gatewayCompatibility.embeddingsVectorDimensions}d), usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
