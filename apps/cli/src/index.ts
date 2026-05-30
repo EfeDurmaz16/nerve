@@ -298,6 +298,7 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
   const includeAdmission = args.includes("--admission");
   const health = await fetchJson(`${baseUrl}/health`);
   const ready = await fetchJson(`${baseUrl}/ready`);
+  const models = await fetchJson(`${baseUrl}/v1/models`);
   const payload = {
     model: getOpt(args, "--model") ?? "mock",
     messages: [{ role: "user", content: "TokenOps HTTP gateway smoke exact cache and runtime proof" }],
@@ -322,6 +323,8 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
     third.status === 200 &&
     firstBody.object === "chat.completion" &&
     (ready as { ready?: unknown }).ready === true &&
+    (models as { object?: unknown }).object === "list" &&
+    Array.isArray((models as { data?: unknown }).data) &&
     Boolean(firstBody.tokenops?.trace_id) &&
     exactCacheObserved &&
     typeof (runtime as { scheduler?: { admitted?: unknown } }).scheduler?.admitted === "number";
@@ -330,6 +333,7 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
     baseUrl,
     health,
     ready,
+    models,
     basic: {
       passed: basicPassed,
       statuses: [first.status, second.status, third.status],

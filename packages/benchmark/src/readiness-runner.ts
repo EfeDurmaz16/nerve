@@ -420,7 +420,7 @@ function buildVerificationManifest(includeGroq: boolean): VerificationManifestEn
     {
       area: "http-gateway-smoke",
       command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787",
-      proves: ["readiness endpoint", "OpenAI-compatible HTTP shape", "exact cache", "runtime stats"],
+      proves: ["readiness endpoint", "OpenAI-compatible HTTP shape", "model list compatibility", "exact cache", "runtime stats"],
       requiredForDemo: true,
     },
     {
