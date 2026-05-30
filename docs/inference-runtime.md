@@ -98,6 +98,18 @@ The benchmark generates concurrent OpenAI-style requests against the local runti
 The product-readiness proof also includes a deterministic priority scheduling
 check showing that foreground inference jumps ahead of queued background work.
 
+## Background Task Queue
+
+`BackgroundTaskQueue` executes AIS background tasks in the local process. It is
+used for local proof and single-process deployments, not for durable distributed
+work. The queue records total, queued, running, completed, and failed tasks, plus
+per-task counts for `verify_cached_answer`, `compress_trace`,
+`precompute_context`, `evaluate_quality`, and the other AIS task types.
+
+The queue uses the same priority scheduler primitive as foreground inference, so
+urgent cached-answer verification can run before lower-priority maintenance
+tasks such as trace compression.
+
 ## Micro-Batching Benchmark
 
 Run:

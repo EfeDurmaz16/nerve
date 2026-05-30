@@ -9,6 +9,7 @@ import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
 import { applyLearnedRouting, applyProviderArbitrage, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
 import { cheapThenVerify } from "@tokenops/verifier";
+import { BackgroundTaskQueue, type BackgroundTaskQueueStats } from "@tokenops/runtime";
 import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
 import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } from "./failover-runner.js";
@@ -47,6 +48,7 @@ export interface ReadinessBenchmarkReport {
     runtimeCoalescing: LoadBenchmarkResult;
     microBatching: BatchBenchmarkResult;
     priorityScheduling: PrioritySchedulingBenchmarkResult;
+    backgroundTasks: BackgroundTaskQueueStats;
     providerFailover: ProviderFailoverBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
@@ -190,6 +192,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     perItemLatencyMs: 1,
   });
   const priorityScheduling = await runPrioritySchedulingBenchmark();
+  const backgroundTasks = await buildBackgroundTaskProof();
   const providerFailover = await runProviderFailoverBenchmark({
     requests: 8,
     primaryFailuresBeforeSuccess: 8,
@@ -235,6 +238,10 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     runtimeCoalescingAvoidsCalls: runtimeCoalescing.avoidedProviderCalls > 0,
     microBatchingReducesLatency: microBatching.estimatedLatencyReduction > 0,
     prioritySchedulingProtectsForegroundInference: priorityScheduling.passed && priorityScheduling.foregroundStartedBeforeBackground,
+    backgroundTaskQueueExecutesAisTasks:
+      backgroundTasks.completedByTask.verify_cached_answer === 1 &&
+      backgroundTasks.completedByTask.compress_trace === 1 &&
+      backgroundTasks.failed === 0,
     runtimeCircuitBreakerFallsBackAfterPrimaryFailures:
       providerFailover.circuitOpened &&
       providerFailover.primaryProviderCalls === providerFailover.circuitFailureThreshold &&
@@ -298,6 +305,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       runtimeCoalescing,
       microBatching,
       priorityScheduling,
+      backgroundTasks,
       providerFailover,
       mockThroughput,
       adaptiveRouting,
@@ -344,6 +352,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Runtime avoided provider calls: ${report.summary.runtimeAvoidedProviderCalls}`,
     `- Micro-batching latency reduction: ${report.summary.batchingLatencyReductionPct}%`,
     `- Priority scheduling: ${report.evidence.priorityScheduling.executionOrder.join(" -> ")}`,
+    `- Background tasks: completed=${report.evidence.backgroundTasks.completed}, failed=${report.evidence.backgroundTasks.failed}`,
     `- Provider failover: circuit=${report.evidence.providerFailover.circuitOpened}, fallback calls=${report.evidence.providerFailover.fallbackProviderCalls}, failed=${report.evidence.providerFailover.failedResponses}`,
     `- Mock output tokens/sec: ${report.summary.mockOutputTokensPerSecond}`,
     `- Groq live measured: ${report.summary.groqLiveMeasured}`,
@@ -373,6 +382,34 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+async function buildBackgroundTaskProof(): Promise<BackgroundTaskQueueStats> {
+  const queue = new BackgroundTaskQueue({ maxConcurrent: 1, maxQueue: 8 });
+  let release!: () => void;
+  queue.enqueue({
+    task: "evaluate_quality",
+    requestId: "readiness_blocker",
+    priority: 0,
+    run: () => new Promise<void>((resolve) => {
+      release = () => resolve();
+    }),
+  });
+  queue.enqueue({
+    task: "compress_trace",
+    requestId: "readiness_context",
+    priority: -10,
+    run: async () => {},
+  });
+  queue.enqueue({
+    task: "verify_cached_answer",
+    requestId: "readiness_semantic_cache",
+    priority: 10,
+    run: async () => {},
+  });
+  release();
+  await queue.drain();
+  return queue.stats();
 }
 
 function buildTraceLedgerProof(): TraceLedgerProof {

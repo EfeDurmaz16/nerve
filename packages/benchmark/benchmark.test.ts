@@ -183,6 +183,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
     expect(report.evidence.priorityScheduling.foregroundStartedBeforeBackground).toBe(true);
     expect(report.passed.prioritySchedulingProtectsForegroundInference).toBe(true);
+    expect(report.evidence.backgroundTasks.completedByTask.verify_cached_answer).toBe(1);
+    expect(report.evidence.backgroundTasks.completedByTask.compress_trace).toBe(1);
+    expect(report.passed.backgroundTaskQueueExecutesAisTasks).toBe(true);
     expect(report.evidence.providerFailover.circuitOpened).toBe(true);
     expect(report.evidence.providerFailover.fallbackProviderCalls).toBe(report.evidence.providerFailover.requests);
     expect(report.evidence.providerFailover.failedResponses).toBe(0);

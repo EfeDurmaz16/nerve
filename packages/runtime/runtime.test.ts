@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CircuitBreaker, CircuitOpenError, InferenceRuntime, InferenceScheduler, MicroBatcher, QueueFullError } from "./src/index.js";
+import { BackgroundTaskQueue, CircuitBreaker, CircuitOpenError, InferenceRuntime, InferenceScheduler, MicroBatcher, QueueFullError } from "./src/index.js";
 
 describe("TokenOps inference runtime", () => {
   it("opens circuit after repeated provider failures and half-opens after cooldown", () => {
@@ -94,5 +94,42 @@ describe("TokenOps inference runtime", () => {
     expect(outputs).toEqual(["out-1", "out-2", "out-3", "out-4", "out-5", "out-6"]);
     expect(flushedSizes).toEqual([3, 3]);
     expect(batcher.stats()).toMatchObject({ batches: 2, items: 6, largestBatch: 3, averageBatchSize: 3 });
+  });
+
+  it("executes background tasks with stats and priority", async () => {
+    const queue = new BackgroundTaskQueue({ maxConcurrent: 1, maxQueue: 4 });
+    const order: string[] = [];
+    let release!: () => void;
+    queue.enqueue({
+      task: "evaluate_quality",
+      requestId: "req_blocker",
+      priority: 0,
+      run: () => new Promise<void>((resolve) => {
+        release = () => resolve();
+      }),
+    });
+    queue.enqueue({
+      task: "compress_trace",
+      requestId: "req_bg",
+      priority: -10,
+      run: async () => { order.push("compress_trace"); },
+    });
+    queue.enqueue({
+      task: "verify_cached_answer",
+      requestId: "req_fg",
+      priority: 10,
+      run: async () => { order.push("verify_cached_answer"); },
+    });
+
+    release();
+    await queue.drain();
+
+    expect(order).toEqual(["verify_cached_answer", "compress_trace"]);
+    expect(queue.stats()).toMatchObject({
+      total: 3,
+      completed: 3,
+      failed: 0,
+      completedByTask: { verify_cached_answer: 1, compress_trace: 1, evaluate_quality: 1 },
+    });
   });
 });
