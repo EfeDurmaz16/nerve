@@ -1,11 +1,15 @@
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
 import { openDb } from "@nerve/store";
 import type { RequestTrace } from "@tokenops/core";
 import { SqliteTraceStore } from "@tokenops/ledger";
+import { createApp } from "../server/src/index.js";
+
+const execFileAsync = promisify(execFile);
 
 describe("tokenops snapshot CLI", () => {
   it("exports and imports local TokenOps traces and benchmark results", () => {
@@ -132,6 +136,38 @@ describe("tokenops snapshot CLI", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("runs HTTP gateway smoke against a live TokenOps server", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-gateway-smoke-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    await withEnv({
+      TOKENOPS_PROVIDER: "mock",
+      TOKENOPS_MOCK_DELAY_MS: "40",
+      TOKENOPS_MAX_CONCURRENT_INFERENCE: "1",
+      TOKENOPS_MAX_INFERENCE_QUEUE: "1",
+    }, async () => {
+      const app = createApp({ db: openDb(dbPath), dbPath });
+      await app.listen({ port: 0, host: "127.0.0.1" });
+      try {
+        const address = app.server.address();
+        if (!address || typeof address === "string") throw new Error("expected TCP listener address");
+        const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission"], dbPath)) as {
+          passed: boolean;
+          basic: { passed: boolean; exactCacheObserved: boolean };
+          admission?: { passed: boolean; shedObserved: boolean; foregroundAdmitted: boolean };
+        };
+
+        expect(result.passed).toBe(true);
+        expect(result.basic.passed).toBe(true);
+        expect(result.basic.exactCacheObserved).toBe(true);
+        expect(result.admission?.passed).toBe(true);
+        expect(result.admission?.shedObserved).toBe(true);
+        expect(result.admission?.foregroundAdmitted).toBe(true);
+      } finally {
+        await app.close();
+      }
+    });
+  });
+
   it("prints provider arbitrage route from local TokenOps traces", () => {
     const dir = mkdtempSync(join(tmpdir(), "tokenops-arbitrage-cli-"));
     const dbPath = join(dir, "tokenops.db");
@@ -167,6 +203,33 @@ function execTokenOps(args: string[], dbPath: string): string {
     env: { ...process.env, TOKENOPS_CLI: "1", NERVE_DB: dbPath },
     encoding: "utf8",
   });
+}
+
+async function execTokenOpsAsync(args: string[], dbPath: string): Promise<string> {
+  const result = await execFileAsync(process.execPath, ["--import", "tsx", "apps/cli/src/index.ts", ...args], {
+    cwd: process.cwd(),
+    env: { ...process.env, TOKENOPS_CLI: "1", NERVE_DB: dbPath },
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  return result.stdout;
+}
+
+async function withEnv<T>(vars: Record<string, string | undefined>, fn: () => Promise<T>): Promise<T> {
+  const old: Record<string, string | undefined> = {};
+  for (const key of Object.keys(vars)) old[key] = process.env[key];
+  for (const [key, value] of Object.entries(vars)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of Object.entries(old)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 }
 
 function trace(

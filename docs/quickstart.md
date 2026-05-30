@@ -305,6 +305,28 @@ curl -sS -X POST http://127.0.0.1:8787/replay \
 curl -sS http://127.0.0.1:8787/benchmark/results
 ```
 
+Run an HTTP smoke against a running gateway:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
+  --url http://127.0.0.1:8787
+```
+
+To prove HTTP-level admission control, start the gateway with a saturated local
+runtime configuration and include `--admission`:
+
+```bash
+TOKENOPS_PROVIDER=mock \
+TOKENOPS_MOCK_DELAY_MS=40 \
+TOKENOPS_MAX_CONCURRENT_INFERENCE=1 \
+TOKENOPS_MAX_INFERENCE_QUEUE=1 \
+pnpm --filter @nerve/server start
+
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
+  --url http://127.0.0.1:8787 \
+  --admission
+```
+
 Run demo:
 
 ```bash

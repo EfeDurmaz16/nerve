@@ -12,6 +12,12 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 ```
 
+With `tokenops serve` or `pnpm --filter @nerve/server start` running, also run:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke
+```
+
 If `GROQ_API_KEY` is configured in `.env`, also run:
 
 ```bash
@@ -42,6 +48,7 @@ A local demo is acceptable when:
 - `tokenops proof` reports `readyForLocalDemo: true`.
 - Replay benchmark shows cost reduction across all bundled datasets.
 - Runtime coalescing avoids at least one provider call.
+- HTTP gateway smoke proves OpenAI-compatible chat, exact cache, runtime stats, and optional admission control.
 - Micro-batching shows positive latency reduction.
 - Provider throughput reports tokens/sec for mock and any configured live provider.
 - Known gaps are documented instead of hidden.

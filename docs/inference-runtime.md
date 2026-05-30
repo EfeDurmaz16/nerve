@@ -118,6 +118,17 @@ The output reports whether foreground inference was admitted, how many queued
 background requests were shed, whether any background work accidentally ran, and
 the final scheduler stats.
 
+Run the same proof through the HTTP gateway path:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --admission
+```
+
+This command calls `GET /health`, `POST /v1/chat/completions`,
+`GET /runtime/stats`, `GET /cache/stats`, and `GET /stats`. With `--admission`
+it also sends a low-priority queued request and a foreground request to verify
+that HTTP clients can observe `inference_queue_shed` and foreground admission.
+
 ## Background Task Queue
 
 `BackgroundTaskQueue` executes AIS background tasks in the local process. It is

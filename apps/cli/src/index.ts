@@ -57,6 +57,7 @@ usage:
   tokenops prune                         prune local TokenOps evidence by retention counts
   tokenops load                          run local concurrent inference runtime benchmark
   tokenops load-shedding                 prove foreground admission under saturated queues
+  tokenops gateway smoke                 run HTTP smoke against a running TokenOps gateway
   tokenops batch                         run local micro-batching throughput benchmark
   tokenops failover                      run provider circuit-breaker/fallback benchmark
   tokenops throughput [mock|ollama|groq] measure provider throughput and tokens/sec
@@ -123,6 +124,7 @@ async function main() {
     if (cmd === "prune") return cmdTokenOpsPrune(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
     if (cmd === "load-shedding") return cmdTokenOpsLoadShedding();
+    if (cmd === "gateway" && argv[1] === "smoke") return cmdTokenOpsGatewaySmoke(argv.slice(2));
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
     if (cmd === "failover") return cmdTokenOpsFailover(argv.slice(1));
     if (cmd === "throughput") return cmdTokenOpsThroughput(argv.slice(1));
@@ -287,6 +289,57 @@ async function cmdTokenOpsLoadShedding() {
   const result = await runLoadSheddingBenchmark();
   console.log(JSON.stringify(result, null, 2));
   if (!result.passed) process.exit(1);
+}
+
+async function cmdTokenOpsGatewaySmoke(args: string[]) {
+  const baseUrl = (getOpt(args, "--url") ?? process.env.TOKENOPS_GATEWAY_URL ?? `http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}`).replace(/\/$/, "");
+  const includeAdmission = args.includes("--admission");
+  const health = await fetchJson(`${baseUrl}/health`);
+  const payload = {
+    model: getOpt(args, "--model") ?? "mock",
+    messages: [{ role: "user", content: "TokenOps HTTP gateway smoke exact cache and runtime proof" }],
+  };
+  const [first, second] = await Promise.all([
+    postJson(`${baseUrl}/v1/chat/completions`, payload),
+    postJson(`${baseUrl}/v1/chat/completions`, payload),
+  ]);
+  const third = await postJson(`${baseUrl}/v1/chat/completions`, payload);
+  const stats = await fetchJson(`${baseUrl}/stats`);
+  const runtime = await fetchJson(`${baseUrl}/runtime/stats`);
+  const cache = await fetchJson(`${baseUrl}/cache/stats`);
+  const firstBody = first.body as SmokeChatBody;
+  const secondBody = second.body as SmokeChatBody;
+  const thirdBody = third.body as SmokeChatBody;
+  const coalescedObserved = Boolean(firstBody.tokenops?.runtime?.coalesced || secondBody.tokenops?.runtime?.coalesced);
+  const exactCacheObserved = Boolean(thirdBody.tokenops?.cache?.exactHit);
+  const admission = includeAdmission ? await runGatewayAdmissionSmoke(baseUrl, payload.model) : undefined;
+  const basicPassed =
+    first.status === 200 &&
+    second.status === 200 &&
+    third.status === 200 &&
+    firstBody.object === "chat.completion" &&
+    Boolean(firstBody.tokenops?.trace_id) &&
+    exactCacheObserved &&
+    typeof (runtime as { scheduler?: { admitted?: unknown } }).scheduler?.admitted === "number";
+  const passed = basicPassed && (!includeAdmission || admission?.passed === true);
+  const result = {
+    baseUrl,
+    health,
+    basic: {
+      passed: basicPassed,
+      statuses: [first.status, second.status, third.status],
+      traceIds: [firstBody.tokenops?.trace_id, secondBody.tokenops?.trace_id, thirdBody.tokenops?.trace_id],
+      coalescedObserved,
+      exactCacheObserved,
+      runtimeScheduler: (runtime as { scheduler?: unknown }).scheduler,
+      cache,
+      stats,
+    },
+    admission,
+    passed,
+  };
+  console.log(JSON.stringify(result, null, 2));
+  if (!passed) process.exit(1);
 }
 
 async function cmdTokenOpsBatch(args: string[]) {
@@ -778,6 +831,85 @@ function loadDotEnv(path: string): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+interface SmokeHttpResult {
+  status: number;
+  body: unknown;
+}
+
+interface SmokeChatBody {
+  object?: string;
+  tokenops?: {
+    trace_id?: string;
+    cache?: { exactHit?: boolean };
+    runtime?: {
+      coalesced?: boolean;
+      stats?: { scheduler?: { shed?: number; rejected?: number } };
+    };
+  };
+  error?: { type?: string; message?: string };
+}
+
+async function fetchJson(url: string): Promise<unknown> {
+  const response = await fetch(url);
+  const text = await response.text();
+  const body = text ? JSON.parse(text) : null;
+  if (!response.ok) throw new Error(`GET ${url} failed with ${response.status}: ${text}`);
+  return body;
+}
+
+async function postJson(url: string, payload: unknown): Promise<SmokeHttpResult> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const text = await response.text();
+  return { status: response.status, body: text ? JSON.parse(text) : null };
+}
+
+async function runGatewayAdmissionSmoke(baseUrl: string, model: string): Promise<{
+  passed: boolean;
+  statuses: number[];
+  backgroundErrorType?: string;
+  shedObserved: boolean;
+  foregroundAdmitted: boolean;
+  runtimeScheduler?: unknown;
+}> {
+  const blocker = postJson(`${baseUrl}/v1/chat/completions`, {
+    model,
+    messages: [{ role: "user", content: "TokenOps HTTP admission blocker" }],
+  });
+  await sleep(5);
+  const background = postJson(`${baseUrl}/v1/chat/completions`, {
+    model,
+    metadata: { tokenops_priority: -10 },
+    messages: [{ role: "user", content: "TokenOps HTTP low priority background work" }],
+  });
+  await sleep(5);
+  const foreground = postJson(`${baseUrl}/v1/chat/completions`, {
+    model,
+    messages: [{ role: "user", content: "TokenOps HTTP foreground user work" }],
+  });
+  const [blockerResult, backgroundResult, foregroundResult] = await Promise.all([blocker, background, foreground]);
+  const backgroundBody = backgroundResult.body as SmokeChatBody;
+  const foregroundBody = foregroundResult.body as SmokeChatBody;
+  const scheduler = foregroundBody.tokenops?.runtime?.stats?.scheduler ?? (await fetchJson(`${baseUrl}/runtime/stats`) as { scheduler?: unknown }).scheduler;
+  const shedObserved = backgroundResult.status === 503 && backgroundBody.error?.type === "inference_queue_shed";
+  const foregroundAdmitted = foregroundResult.status === 200;
+  return {
+    passed: blockerResult.status === 200 && shedObserved && foregroundAdmitted,
+    statuses: [blockerResult.status, backgroundResult.status, foregroundResult.status],
+    backgroundErrorType: backgroundBody.error?.type,
+    shedObserved,
+    foregroundAdmitted,
+    runtimeScheduler: scheduler,
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
 function readVerifierCases(path: string): VerifierEvalCase[] {
