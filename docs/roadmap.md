@@ -20,6 +20,7 @@ This roadmap separates what the current workspace can reach now from what should
 - request trace and cost ledger
 - SQLite-backed TokenOps request traces
 - SQLite-backed TokenOps exact cache entries
+- SQLite-backed idempotency records for retry-safe gateway calls
 - SQLite-backed benchmark results
 - `/replay` API for local dataset benchmark runs
 - `/benchmark/results`
@@ -59,7 +60,7 @@ The 1-month target is a credible local/self-hosted alpha that can sit in front o
 - Support OpenAI-style streaming with token-level chunks when real providers support it.
 - Harden `/v1/responses` beyond minimal non-streaming compatibility.
 - Add provider-backed embeddings for production semantic-cache experiments.
-- Add idempotency keys for gateway calls.
+- Extend idempotency replay to streaming responses once token-level stream capture exists.
 - Add request timeout and retry policy.
 
 ### Replay and Evaluation

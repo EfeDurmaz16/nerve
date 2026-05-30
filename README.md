@@ -298,6 +298,7 @@ Production-like:
 - budget firewall
 - AIS compute plan
 - request trace and cost ledger
+- SQLite-backed idempotency records for retry-safe non-streaming chat completions
 - benchmark datasets and replay runner
 - mock provider
 - Groq provider over OpenAI-compatible HTTP
@@ -330,6 +331,7 @@ Prototype/mock:
 - benchmark datasets are small deterministic fixtures
 - rate limiting is local in-memory per gateway process
 - circuit breaker and coalescing are local per gateway process; distributed coordination is future work
+- idempotency is implemented for non-streaming chat completions; streaming retries are rejected until stream replay is implemented
 
 Roadmap:
 

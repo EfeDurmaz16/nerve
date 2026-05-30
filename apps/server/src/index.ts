@@ -17,6 +17,8 @@ import {
   countTraces,
   insertTokenOpsBenchmarkResult,
   listTokenOpsBenchmarkResults,
+  getTokenOpsIdempotencyRecord,
+  insertTokenOpsIdempotencyRecord,
 } from "@nerve/store";
 import { TaskEnvelope, Trace, VerifierSpec, parseOrThrow, newId, nowIso } from "@nerve/ir";
 import { compileTask } from "@nerve/planner";
@@ -131,6 +133,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
 
   app.post("/v1/chat/completions", async (req, reply) => {
     const wantsStream = Boolean((req.body as { stream?: boolean } | undefined)?.stream);
+    const idemKey = idempotencyKey(req.headers["idempotency-key"]);
     let request: NormalizedRequest;
     try {
       request = normalizeOpenAIChatRequest(req.body);
@@ -147,6 +150,25 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       risk_level: profile.riskLevel,
     };
     request = { ...request, normalized_hash: stableRequestHash(request) };
+    if (idemKey && wantsStream) {
+      return reply.code(422).send({ error: { message: "idempotency-key is only supported for non-streaming chat completions", type: "unsupported_feature" } });
+    }
+    if (idemKey) {
+      const replay = getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", idemKey);
+      if (replay && replay.request_hash !== request.normalized_hash) {
+        return reply.code(409).send({
+          error: {
+            message: "idempotency-key was already used for a different chat completion request",
+            type: "idempotency_key_conflict",
+          },
+        });
+      }
+      if (replay) {
+        reply.header("x-tokenops-idempotency-hit", "true");
+        if (replay.trace_id) reply.header("x-tokenops-trace-id", replay.trace_id);
+        return reply.code(replay.status_code).send(replay.response_body);
+      }
+    }
     const complexity = estimateComplexity(request);
     const prefix = simulatePrefixCache(request);
     const contextObservation = state.contextBlockCache.observe(request);
@@ -335,7 +357,20 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       reply.header("cache-control", "no-cache");
       return reply.send(toOpenAIChatCompletionStream(response));
     }
-    return { ...toOpenAIChatCompletion(request, response), tokenops: { ...toOpenAIChatCompletion(request, response).tokenops, trace_id: trace.id, compute_plan: plan, cache: trace.cache, routing: trace.routing, policy: trace.policy, runtime: { coalesced: runtimeCoalesced, stats: runtime.stats() } } };
+    const completion = toOpenAIChatCompletion(request, response);
+    const body = { ...completion, tokenops: { ...completion.tokenops, trace_id: trace.id, compute_plan: plan, cache: trace.cache, routing: trace.routing, policy: trace.policy, runtime: { coalesced: runtimeCoalesced, stats: runtime.stats() } } };
+    if (idemKey) {
+      insertTokenOpsIdempotencyRecord(db, {
+        route: "/v1/chat/completions",
+        key: idemKey,
+        request_hash: request.normalized_hash,
+        status_code: 200,
+        trace_id: trace.id,
+        response_body: body,
+        created_at: new Date().toISOString(),
+      });
+    }
+    return body;
   });
 
   app.post("/v1/responses", async (req, reply) => {
@@ -695,6 +730,13 @@ function providerFallbackNames(providerName: string): string[] {
 
 function providerCoalesceKey(request: NormalizedRequest, route: ReturnType<typeof routeModel>): string {
   return [route.selectedProvider, route.selectedModel, request.normalized_hash].join(":");
+}
+
+function idempotencyKey(value: unknown): string | undefined {
+  if (Array.isArray(value)) value = value[0];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 256 ? trimmed : undefined;
 }
 
 function buildTrace(input: {

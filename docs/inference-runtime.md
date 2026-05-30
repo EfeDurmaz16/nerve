@@ -24,6 +24,8 @@ Gateway
 
 If two identical cache misses arrive concurrently, TokenOps shares the same in-flight provider call instead of burning duplicate compute. The second waiter is reported as `tokenops.runtime.coalesced = true`.
 
+If a non-streaming `/v1/chat/completions` request includes `idempotency-key`, TokenOps stores the successful response in SQLite under the request hash. A retry with the same key and same request returns the stored body with `x-tokenops-idempotency-hit: true` and does not create another trace or provider call. A retry with the same key and a different request returns `409 idempotency_key_conflict`.
+
 ## Configuration
 
 ```bash

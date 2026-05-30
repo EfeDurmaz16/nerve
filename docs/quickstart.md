@@ -61,6 +61,15 @@ curl -sS -X POST http://127.0.0.1:8787/v1/embeddings \
   -d '{"model":"text-embedding-3-small","input":["TokenOps cache policy","Adaptive inference control plane"],"dimensions":32}'
 ```
 
+Retry-safe chat completions can use `idempotency-key`. Reusing the same key with the same request returns the stored response and does not create another trace or provider call; reusing it with a different request returns `409`.
+
+```bash
+curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
+  -H 'content-type: application/json' \
+  -H 'idempotency-key: demo-retry-1' \
+  -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart retry"}]}'
+```
+
 Run benchmark:
 
 ```bash

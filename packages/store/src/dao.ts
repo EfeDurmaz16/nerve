@@ -474,3 +474,60 @@ export const listTokenOpsBenchmarkResults = (db: DB, limit = 100): BenchmarkResu
     .all(limit) as { body: string }[];
   return rows.map((r) => JSON.parse(r.body) as BenchmarkResult);
 };
+
+// ---------- TokenOps idempotency records ----------
+export interface TokenOpsIdempotencyRecord<T = unknown> {
+  route: string;
+  key: string;
+  request_hash: string;
+  status_code: number;
+  trace_id?: string;
+  response_body: T;
+  created_at: string;
+}
+
+export const insertTokenOpsIdempotencyRecord = <T = unknown>(db: DB, record: TokenOpsIdempotencyRecord<T>): void => {
+  db.prepare(
+    `INSERT OR REPLACE INTO tokenops_idempotency_records(
+      route, key, request_hash, status_code, trace_id, response_body, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    record.route,
+    record.key,
+    record.request_hash,
+    record.status_code,
+    record.trace_id ?? null,
+    JSON.stringify(record.response_body),
+    record.created_at,
+  );
+};
+
+export const getTokenOpsIdempotencyRecord = <T = unknown>(
+  db: DB,
+  route: string,
+  key: string,
+): TokenOpsIdempotencyRecord<T> | null => {
+  const row = db
+    .prepare("SELECT * FROM tokenops_idempotency_records WHERE route = ? AND key = ?")
+    .get(route, key) as
+    | {
+        route: string;
+        key: string;
+        request_hash: string;
+        status_code: number;
+        trace_id: string | null;
+        response_body: string;
+        created_at: string;
+      }
+    | undefined;
+  if (!row) return null;
+  return {
+    route: row.route,
+    key: row.key,
+    request_hash: row.request_hash,
+    status_code: row.status_code,
+    trace_id: row.trace_id ?? undefined,
+    response_body: JSON.parse(row.response_body) as T,
+    created_at: row.created_at,
+  };
+};

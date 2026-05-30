@@ -136,6 +136,94 @@ describe("TokenOps server", () => {
     await app.close();
   });
 
+  it("replays successful chat completions by idempotency key without creating a second trace", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const payload = { model: "mock", messages: [{ role: "user", content: "retry-safe model call" }] };
+      const first = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-chat-1" },
+        payload,
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-chat-1" },
+        payload,
+      });
+
+      expect(first.statusCode).toBe(200);
+      expect(second.statusCode).toBe(200);
+      expect(second.headers["x-tokenops-idempotency-hit"]).toBe("true");
+      expect(second.headers["x-tokenops-trace-id"]).toBe(first.headers["x-tokenops-trace-id"]);
+      expect(second.json()).toEqual(first.json());
+      expect((await app.inject({ method: "GET", url: "/stats" })).json().requests).toBe(1);
+      await app.close();
+    });
+  });
+
+  it("rejects reused idempotency keys for different chat requests", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const first = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-conflict-1" },
+        payload: { model: "mock", messages: [{ role: "user", content: "first request" }] },
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-conflict-1" },
+        payload: { model: "mock", messages: [{ role: "user", content: "different request" }] },
+      });
+
+      expect(first.statusCode).toBe(200);
+      expect(second.statusCode).toBe(409);
+      expect(second.json().error.type).toBe("idempotency_key_conflict");
+      expect((await app.inject({ method: "GET", url: "/stats" })).json().requests).toBe(1);
+      await app.close();
+    });
+  });
+
+  it("persists idempotency records across app instances", async () => {
+    await withProvider("mock", async () => {
+      const dbPath = "/tmp/tokenops-server-idempotency-test.db";
+      rmSync(dbPath, { force: true });
+      rmSync(`${dbPath}-wal`, { force: true });
+      rmSync(`${dbPath}-shm`, { force: true });
+      const payload = { model: "mock", messages: [{ role: "user", content: "persisted retry-safe model call" }] };
+      const firstApp = createApp({ db: openDb(dbPath), dbPath });
+      const first = await firstApp.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-persist-1" },
+        payload,
+      });
+      await firstApp.close();
+
+      const secondApp = createApp({ db: openDb(dbPath), dbPath });
+      const second = await secondApp.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-persist-1" },
+        payload,
+      });
+
+      expect(first.statusCode).toBe(200);
+      expect(second.statusCode).toBe(200);
+      expect(second.headers["x-tokenops-idempotency-hit"]).toBe("true");
+      expect(second.headers["x-tokenops-trace-id"]).toBe(first.headers["x-tokenops-trace-id"]);
+      expect(second.json()).toEqual(first.json());
+      expect((await secondApp.inject({ method: "GET", url: "/stats" })).json().requests).toBe(1);
+      await secondApp.close();
+      rmSync(dbPath, { force: true });
+      rmSync(`${dbPath}-wal`, { force: true });
+      rmSync(`${dbPath}-shm`, { force: true });
+    });
+  });
+
   it("returns a clear provider error when Groq key is missing", async () => {
     const old = process.env.TOKENOPS_PROVIDER;
     const oldGroqKey = process.env.GROQ_API_KEY;
