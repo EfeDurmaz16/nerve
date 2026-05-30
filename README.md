@@ -281,7 +281,7 @@ provider SLO routing, provider arbitrage, verifier escalation, policy blocks,
 AIS foreground/background planning, runtime priority scheduling, load shedding,
 and could-have-been-cheaper analyzer output.
 
-HTTP gateway smoke, against a running gateway:
+HTTP gateway smoke, against a running gateway. This checks `/ready`, OpenAI-compatible chat shape, exact cache reuse, and runtime stats:
 
 ```bash
 TOKENOPS_PORT=8787 pnpm --filter @nerve/server start

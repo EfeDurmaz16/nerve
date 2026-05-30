@@ -152,11 +152,13 @@ describe("tokenops snapshot CLI", () => {
         if (!address || typeof address === "string") throw new Error("expected TCP listener address");
         const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission"], dbPath)) as {
           passed: boolean;
+          ready: { ready: boolean };
           basic: { passed: boolean; exactCacheObserved: boolean };
           admission?: { passed: boolean; shedObserved: boolean; foregroundAdmitted: boolean };
         };
 
         expect(result.passed).toBe(true);
+        expect(result.ready.ready).toBe(true);
         expect(result.basic.passed).toBe(true);
         expect(result.basic.exactCacheObserved).toBe(true);
         expect(result.admission?.passed).toBe(true);
