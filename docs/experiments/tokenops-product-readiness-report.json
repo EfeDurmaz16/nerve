@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:39:46.821Z",
+  "generatedAt": "2026-05-30T15:40:31.825Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,8 +9,8 @@
     "estimatedReplayCostReductionPct": 95.5,
     "runtimeAvoidedProviderCalls": 18,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 24000,
-    "groqLiveMeasured": false
+    "mockOutputTokensPerSecond": 6857.14,
+    "groqLiveMeasured": true
   },
   "evidence": {
     "replay": [
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 53,
+      "wallTimeMs": 30,
       "providerCalls": 12,
       "coalescedResponses": 18,
       "avoidedProviderCalls": 18,
       "p50LatencyMs": 10,
-      "p95LatencyMs": 29,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 19,
-      "estimatedLatencyReduction": 0.928,
+      "batchedWallTimeMs": 18,
+      "estimatedLatencyReduction": 0.9318,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -208,31 +208,31 @@
       "provider": "mock",
       "model": "mock",
       "skipped": false,
-      "requests": 12,
-      "concurrency": 4,
-      "wallTimeMs": 12,
-      "providerCalls": 12,
-      "totalInputTokens": 480,
-      "totalOutputTokens": 288,
-      "totalTokens": 768,
-      "outputTokensPerSecond": 24000,
-      "totalTokensPerSecond": 64000,
+      "requests": 2,
+      "concurrency": 1,
+      "wallTimeMs": 7,
+      "providerCalls": 2,
+      "totalInputTokens": 80,
+      "totalOutputTokens": 48,
+      "totalTokens": 128,
+      "outputTokensPerSecond": 6857.14,
+      "totalTokensPerSecond": 18285.71,
       "p50LatencyMs": 3,
-      "p95LatencyMs": 4,
+      "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
         "scheduler": {
-          "maxConcurrent": 4,
-          "maxQueue": 12,
+          "maxConcurrent": 1,
+          "maxQueue": 2,
           "inFlight": 0,
           "queued": 0,
-          "admitted": 12,
+          "admitted": 2,
           "rejected": 0,
-          "completed": 12
+          "completed": 2
         },
         "coalescer": {
-          "sharedCalls": 12,
+          "sharedCalls": 2,
           "coalescedWaiters": 0,
           "inFlightKeys": 0
         },
@@ -358,7 +358,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSWRN68376XS08QQX8A5M58H",
+        "requestId": "req_01KSWRPJ6H2MN1J30B6WQY84F9",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -384,7 +384,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSWRN68376XS08QQX8A5M58H",
+        "requestId": "req_01KSWRPJ6H2MN1J30B6WQY84F9",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -413,7 +413,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSWRN68376XS08QQX8A5M58H",
+        "requestId": "req_01KSWRPJ6H2MN1J30B6WQY84F9",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -441,7 +441,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSWRN68376XS08QQX8A5M58H",
+        "requestId": "req_01KSWRPJ6H2MN1J30B6WQY84F9",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -471,6 +471,47 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "reason": "AIS maps cache hits, semantic reuse, budget blocks, and repeated context into foreground actions and background tasks"
+    },
+    "groqThroughput": {
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "skipped": false,
+      "requests": 2,
+      "concurrency": 1,
+      "wallTimeMs": 565,
+      "providerCalls": 2,
+      "totalInputTokens": 120,
+      "totalOutputTokens": 54,
+      "totalTokens": 174,
+      "outputTokensPerSecond": 95.58,
+      "totalTokensPerSecond": 307.96,
+      "p50LatencyMs": 386,
+      "p95LatencyMs": 386,
+      "errors": 0,
+      "sampleErrors": [],
+      "runtime": {
+        "scheduler": {
+          "maxConcurrent": 1,
+          "maxQueue": 2,
+          "inFlight": 0,
+          "queued": 0,
+          "admitted": 2,
+          "rejected": 0,
+          "completed": 2
+        },
+        "coalescer": {
+          "sharedCalls": 2,
+          "coalescedWaiters": 0,
+          "inFlightKeys": 0
+        },
+        "circuits": {
+          "groq": {
+            "state": "closed",
+            "failures": 0,
+            "halfOpenInFlight": 0
+          }
+        }
+      }
     }
   },
   "passed": {
