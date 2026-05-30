@@ -19,6 +19,7 @@ This roadmap separates what the current workspace can reach now from what should
 - AIS foreground/background compute plan
 - request trace and cost ledger
 - SQLite-backed TokenOps request traces
+- SQLite-backed provider attempt ledger
 - SQLite-backed TokenOps exact cache entries
 - SQLite-backed idempotency records for retry-safe gateway calls
 - SQLite-backed benchmark results
@@ -37,7 +38,7 @@ The 1-month target is a credible local/self-hosted alpha that can sit in front o
 ### Persistence
 
 - Move all TokenOps cache layers into SQLite-backed stores.
-- Add migrations for semantic cache, tool-result cache, context-block fingerprints, daily budget usage, and provider call attempts.
+- Add migrations for daily budget usage and provider-call aggregate windows.
 - Add time-window and size-aware retention policies beyond count-based pruning.
 
 ### Provider Adapters

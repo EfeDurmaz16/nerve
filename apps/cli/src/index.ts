@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import kleur from "kleur";
-import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch, exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult, pruneTokenOpsEvidence } from "@nerve/store";
+import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch, exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult, listTokenOpsProviderAttempts, pruneTokenOpsEvidence } from "@nerve/store";
 import { compileTask } from "@nerve/planner";
 import { mineAll } from "@nerve/miner";
 import { generateEvals, learn } from "@nerve/learner";
@@ -68,6 +68,7 @@ usage:
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
   tokenops providers health              score provider health from local traces
+  tokenops providers attempts            list provider call attempts from local DB
   tokenops verify eval [--dataset file]  run verifier eval harness
   tokenops verify routing [dataset]      run cheap-then-verify routing eval
   tokenops compare groq                  run live Groq direct-vs-gateway comparison
@@ -129,6 +130,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
+    if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
     if (cmd === "verify" && argv[1] === "routing") return cmdTokenOpsVerifyRouting(argv.slice(2));
     if (cmd === "compare" && argv[1] === "groq") return cmdTokenOpsCompareGroq();
@@ -217,7 +219,7 @@ function cmdTokenOpsImport(args: string[]) {
   const db = openDb(DB_PATH);
   const snapshot = JSON.parse(readFileSync(resolve(file), "utf8")) as ReturnType<typeof exportTokenOpsSnapshot>;
   const imported = importTokenOpsSnapshot(db, snapshot);
-  console.log(kleur.green(`✓ imported ${imported.traces} traces and ${imported.benchmark_results} benchmark results from ${resolve(file)}`));
+  console.log(kleur.green(`✓ imported ${imported.traces} traces, ${imported.benchmark_results} benchmark results, and ${imported.provider_attempts} provider attempts from ${resolve(file)}`));
 }
 
 function cmdTokenOpsPrune(args: string[]) {
@@ -361,6 +363,11 @@ function cmdTokenOpsProvidersHealth() {
   const db = openDb(DB_PATH);
   const store = new SqliteTraceStore(db);
   console.log(JSON.stringify(providerHealthReport(store.list(10_000)), null, 2));
+}
+
+function cmdTokenOpsProvidersAttempts(args: string[]) {
+  const db = openDb(DB_PATH);
+  console.log(JSON.stringify({ attempts: listTokenOpsProviderAttempts(db, { limit: Number(getOpt(args, "--limit") ?? 100), traceId: getOpt(args, "--trace") }) }, null, 2));
 }
 
 async function cmdTokenOpsVerifyEval() {
@@ -551,6 +558,7 @@ function cmdDb() {
     patches: listPatches(db).length,
     tokenops_request_traces: snapshot.traces.length,
     tokenops_benchmark_results: snapshot.benchmark_results.length,
+    tokenops_provider_attempts: snapshot.provider_attempts.length,
   }, null, 2));
 }
 

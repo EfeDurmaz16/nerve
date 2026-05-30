@@ -179,6 +179,7 @@ Print provider health from local traces:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
 ```
 
 Run Ollama smoke:

@@ -19,6 +19,8 @@ import {
   listTokenOpsBenchmarkResults,
   getTokenOpsIdempotencyRecord,
   insertTokenOpsIdempotencyRecord,
+  insertTokenOpsProviderAttempt,
+  listTokenOpsProviderAttempts,
 } from "@nerve/store";
 import { TaskEnvelope, Trace, VerifierSpec, parseOrThrow, newId, nowIso } from "@nerve/ir";
 import { compileTask } from "@nerve/planner";
@@ -318,6 +320,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
           computePlanId: plan.requestId,
         });
         state.traceStore.insert(trace);
+        recordProviderAttempts(db, trace.id, request, route.selectedModel, route.selectedProvider, undefined, false, Date.now() - providerStarted, (e as Error).message);
         reply.header("x-tokenops-trace-id", trace.id);
         return reply.code(502).send({
           error: {
@@ -351,6 +354,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       computePlanId: plan.requestId,
     });
     state.traceStore.insert(trace);
+    recordProviderAttempts(db, trace.id, request, route.selectedModel, effectiveRoute.selectedProvider, response, exactHit || semanticHit || runtimeCoalesced, response.latency_ms);
     reply.header("x-tokenops-trace-id", trace.id);
     if (wantsStream) {
       reply.header("content-type", "text/event-stream; charset=utf-8");
@@ -472,6 +476,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
   });
   app.get("/rate-limit/status", async () => ({ per_minute: optionalInt("TOKENOPS_RATE_LIMIT_PER_MINUTE"), buckets: rateBuckets.size }));
   app.get("/providers/health", async () => providerHealthReport(state.traceStore.list(10_000)));
+  app.get("/providers/attempts", async (req) => ({ attempts: listTokenOpsProviderAttempts(db, { limit: Number((req.query as { limit?: string }).limit ?? 100), traceId: (req.query as { trace?: string }).trace }) }));
   app.get("/runtime/stats", async () => runtime.stats());
   app.get("/routing/policy", async () => learnRoutingPolicy(state.traceStore.list(10_000), {
     minSamples: Number(process.env.TOKENOPS_ROUTING_MIN_SAMPLES ?? 2),
@@ -737,6 +742,63 @@ function idempotencyKey(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= 256 ? trimmed : undefined;
+}
+
+function recordProviderAttempts(
+  db: DB,
+  traceId: string,
+  request: NormalizedRequest,
+  model: string,
+  selectedProvider: string,
+  response: { raw?: unknown } | undefined,
+  servedWithoutProviderCall: boolean,
+  latencyMs: number,
+  error?: string,
+): void {
+  if (servedWithoutProviderCall) return;
+  const fallbackAttempts = extractFallbackAttempts(response?.raw);
+  const attempts = fallbackAttempts.length > 0
+    ? fallbackAttempts
+    : [{ provider: selectedProvider, ok: error === undefined, error }];
+  attempts.forEach((attempt, index) => {
+    insertTokenOpsProviderAttempt(db, {
+      id: `att_${traceId.slice(3)}_${index}`,
+      trace_id: traceId,
+      request_hash: request.normalized_hash,
+      provider: attempt.provider,
+      model,
+      ok: attempt.ok,
+      error: attempt.error,
+      latency_ms: attempt.ok ? latencyMs : 0,
+      created_at: new Date(Date.now() + index).toISOString(),
+    });
+  });
+}
+
+function extractFallbackAttempts(raw: unknown): Array<{ provider: string; ok: boolean; error?: string }> {
+  if (!isRecord(raw) || !isRecord(raw.tokenops) || !isRecord(raw.tokenops.fallback)) return [];
+  const attempts = raw.tokenops.fallback.attempts;
+  if (!Array.isArray(attempts)) return [];
+  return attempts.flatMap((attempt) => {
+    if (!isRecord(attempt) || typeof attempt.provider !== "string" || typeof attempt.ok !== "boolean") return [];
+    return [{
+      provider: attempt.provider,
+      ok: attempt.ok,
+      error: typeof attempt.error === "string" ? redactProviderAttemptError(attempt.error) : undefined,
+    }];
+  });
+}
+
+function redactProviderAttemptError(error: string): string {
+  return error
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [REDACTED]")
+    .replace(/gsk_[A-Za-z0-9_-]+/g, "gsk_[REDACTED]")
+    .replace(/sk-[A-Za-z0-9_-]+/g, "sk-[REDACTED]")
+    .slice(0, 500);
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function buildTrace(input: {

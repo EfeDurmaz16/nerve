@@ -40,6 +40,19 @@ TOKENOPS_PROVIDER_TIMEOUT_MS=30000
 
 Gateway traces record `providerLatencyMs` for model calls and provider errors. SLO routing and provider-health reports use this field for p95 latency windows.
 
+Provider attempts are stored separately in SQLite for fallback/retry debugging:
+
+```text
+GET /providers/attempts
+GET /providers/attempts?trace=<trace_id>
+```
+
+The CLI equivalent is:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
+```
+
 ## Runtime Stats
 
 ```text

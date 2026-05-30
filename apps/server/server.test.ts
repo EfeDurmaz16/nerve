@@ -289,6 +289,23 @@ describe("TokenOps server", () => {
     await app.close();
   });
 
+  it("records provider attempts for fallback chains", async () => {
+    await withEnv({ TOKENOPS_PROVIDER: "groq,mock", GROQ_API_KEY: undefined }, async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: { model: "gpt-5-mini", messages: [{ role: "user", content: "attempt ledger fallback" }] },
+      });
+      expect(res.statusCode).toBe(200);
+      const attempts = (await app.inject({ method: "GET", url: "/providers/attempts" })).json().attempts;
+      expect(attempts.map((attempt: { provider: string }) => attempt.provider)).toEqual(["mock", "groq"]);
+      expect(attempts.find((attempt: { provider: string }) => attempt.provider === "groq")).toMatchObject({ ok: false });
+      expect(attempts.find((attempt: { provider: string }) => attempt.provider === "mock")).toMatchObject({ ok: true });
+      await app.close();
+    });
+  });
+
   it("exposes and applies learned routing policy when enabled", async () => {
     await withEnv({ TOKENOPS_PROVIDER: "mock", TOKENOPS_ADAPTIVE_ROUTING: "1", TOKENOPS_ROUTING_MIN_SAMPLES: "2" }, async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });

@@ -3,9 +3,11 @@ import {
   exportTokenOpsSnapshot,
   getTokenOpsIdempotencyRecord,
   importTokenOpsSnapshot,
+  insertTokenOpsProviderAttempt,
   insertTokenOpsBenchmarkResult,
   insertTokenOpsIdempotencyRecord,
   insertTokenOpsTrace,
+  listTokenOpsProviderAttempts,
   listTokenOpsBenchmarkResults,
   listTokenOpsTraces,
   openDb,
@@ -51,17 +53,29 @@ describe("TokenOps store snapshots", () => {
     const source = openDb(":memory:");
     insertTokenOpsTrace(source, trace("tr_snapshot"));
     insertTokenOpsBenchmarkResult(source, "bm_snapshot", benchmark("snapshot.jsonl"));
+    insertTokenOpsProviderAttempt(source, {
+      id: "att_snapshot",
+      trace_id: "tr_snapshot",
+      request_hash: "tr_snapshot_hash",
+      provider: "mock",
+      model: "gpt-5-mini",
+      ok: true,
+      latency_ms: 3,
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
 
     const snapshot = exportTokenOpsSnapshot(source);
     expect(snapshot.schema_version).toBe("tokenops.snapshot.v1");
     expect(snapshot.traces).toHaveLength(1);
     expect(snapshot.benchmark_results).toHaveLength(1);
+    expect(snapshot.provider_attempts).toHaveLength(1);
 
     const target = openDb(":memory:");
     const imported = importTokenOpsSnapshot(target, snapshot);
-    expect(imported).toEqual({ traces: 1, benchmark_results: 1 });
+    expect(imported).toEqual({ traces: 1, benchmark_results: 1, provider_attempts: 1 });
     expect(listTokenOpsTraces(target, { limit: 10 })[0]!.id).toBe("tr_snapshot");
     expect(listTokenOpsBenchmarkResults(target, 10)[0]!.dataset).toBe("snapshot.jsonl");
+    expect(listTokenOpsProviderAttempts(target, { limit: 10 })[0]!.id).toBe("att_snapshot");
   });
 
   it("prunes old TokenOps evidence while keeping the newest records", () => {
@@ -98,5 +112,24 @@ describe("TokenOps store snapshots", () => {
     expect(listTokenOpsBenchmarkResults(db, 10).map((row) => row.dataset)).toEqual(["new.jsonl"]);
     expect(getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", "old-key")).toBeNull();
     expect(getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", "new-key")).toBeTruthy();
+  });
+
+  it("stores and lists provider attempts for gateway requests", () => {
+    const db = openDb(":memory:");
+    insertTokenOpsProviderAttempt(db, {
+      id: "att_1",
+      trace_id: "tr_1",
+      request_hash: "hash_1",
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      ok: false,
+      error: "upstream unavailable",
+      latency_ms: 25,
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+
+    const attempts = listTokenOpsProviderAttempts(db, { limit: 10 });
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]).toMatchObject({ provider: "groq", ok: false, error: "upstream unavailable" });
   });
 });

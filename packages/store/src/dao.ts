@@ -480,6 +480,7 @@ export interface TokenOpsSnapshot {
   exported_at: string;
   traces: RequestTrace[];
   benchmark_results: BenchmarkResult[];
+  provider_attempts: TokenOpsProviderAttempt[];
 }
 
 export function exportTokenOpsSnapshot(
@@ -491,10 +492,11 @@ export function exportTokenOpsSnapshot(
     exported_at: new Date().toISOString(),
     traces: listTokenOpsTraces(db, { limit: opts.traceLimit ?? 10_000 }),
     benchmark_results: listTokenOpsBenchmarkResults(db, opts.benchmarkLimit ?? 10_000),
+    provider_attempts: listTokenOpsProviderAttempts(db, { limit: opts.traceLimit ?? 10_000 }),
   };
 }
 
-export function importTokenOpsSnapshot(db: DB, snapshot: TokenOpsSnapshot): { traces: number; benchmark_results: number } {
+export function importTokenOpsSnapshot(db: DB, snapshot: TokenOpsSnapshot): { traces: number; benchmark_results: number; provider_attempts: number } {
   if (snapshot.schema_version !== "tokenops.snapshot.v1") throw new Error(`unsupported TokenOps snapshot schema: ${snapshot.schema_version}`);
   for (const trace of snapshot.traces) insertTokenOpsTrace(db, trace);
   let benchmarkCount = 0;
@@ -502,7 +504,8 @@ export function importTokenOpsSnapshot(db: DB, snapshot: TokenOpsSnapshot): { tr
     insertTokenOpsBenchmarkResult(db, `import_${snapshot.exported_at}_${index}_${result.dataset}`, result);
     benchmarkCount++;
   }
-  return { traces: snapshot.traces.length, benchmark_results: benchmarkCount };
+  for (const attempt of snapshot.provider_attempts ?? []) insertTokenOpsProviderAttempt(db, attempt);
+  return { traces: snapshot.traces.length, benchmark_results: benchmarkCount, provider_attempts: snapshot.provider_attempts?.length ?? 0 };
 }
 
 export interface TokenOpsPruneOptions {
@@ -549,6 +552,67 @@ function pruneKeepLatestComposite(db: DB, table: string, keyColumns: string[], o
   ).run(keepLatest);
   return Number(result.changes);
 }
+
+// ---------- TokenOps provider attempts ----------
+export interface TokenOpsProviderAttempt {
+  id: string;
+  trace_id?: string;
+  request_hash: string;
+  provider: string;
+  model: string;
+  ok: boolean;
+  error?: string;
+  latency_ms: number;
+  created_at: string;
+}
+
+export const insertTokenOpsProviderAttempt = (db: DB, attempt: TokenOpsProviderAttempt): void => {
+  db.prepare(
+    `INSERT OR REPLACE INTO tokenops_provider_attempts(
+      id, trace_id, request_hash, provider, model, ok, error, latency_ms, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    attempt.id,
+    attempt.trace_id ?? null,
+    attempt.request_hash,
+    attempt.provider,
+    attempt.model,
+    attempt.ok ? 1 : 0,
+    attempt.error ?? null,
+    attempt.latency_ms,
+    attempt.created_at,
+  );
+};
+
+export const listTokenOpsProviderAttempts = (
+  db: DB,
+  opts: { limit?: number; traceId?: string } = {},
+): TokenOpsProviderAttempt[] => {
+  const rows = opts.traceId
+    ? db.prepare("SELECT * FROM tokenops_provider_attempts WHERE trace_id = ? ORDER BY created_at DESC LIMIT ?").all(opts.traceId, opts.limit ?? 500)
+    : db.prepare("SELECT * FROM tokenops_provider_attempts ORDER BY created_at DESC LIMIT ?").all(opts.limit ?? 500);
+  return (rows as Array<{
+    id: string;
+    trace_id: string | null;
+    request_hash: string;
+    provider: string;
+    model: string;
+    ok: number;
+    error: string | null;
+    latency_ms: number;
+    created_at: string;
+  }>).map((row) => ({
+    id: row.id,
+    trace_id: row.trace_id ?? undefined,
+    request_hash: row.request_hash,
+    provider: row.provider,
+    model: row.model,
+    ok: row.ok === 1,
+    error: row.error ?? undefined,
+    latency_ms: row.latency_ms,
+    created_at: row.created_at,
+  }));
+};
 
 // ---------- TokenOps idempotency records ----------
 export interface TokenOpsIdempotencyRecord<T = unknown> {

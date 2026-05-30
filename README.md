@@ -123,6 +123,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts smoke ollama
 ```
 
@@ -153,6 +154,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops routing slo`
 - `tokenops routing slo-benchmark`
 - `tokenops providers health`
+- `tokenops providers attempts`
 - `tokenops verify eval`
 - `tokenops verify eval --dataset <jsonl>`
 - `tokenops verify routing [dataset]`
@@ -306,6 +308,7 @@ Production-like:
 - budget firewall
 - AIS compute plan
 - request trace and cost ledger
+- SQLite-backed provider attempt ledger for fallback/retry debugging
 - SQLite-backed idempotency records for retry-safe non-streaming chat completions
 - snapshot import/export for TokenOps traces and benchmark results
 - retention pruning for local TokenOps traces, benchmark results, and idempotency records
