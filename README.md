@@ -59,6 +59,7 @@ Implemented endpoints:
 - `POST /v1/chat/completions`
 - `POST /v1/responses`
 - `POST /v1/embeddings`
+- `GET /v1/models`
 - `GET /health`
 - `GET /ready`
 - `GET /stats`

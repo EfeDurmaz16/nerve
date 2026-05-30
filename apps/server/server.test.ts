@@ -192,6 +192,26 @@ describe("TokenOps server", () => {
     await app.close();
   });
 
+  it("serves an OpenAI-compatible model list from TokenOps pricing config", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const res = await app.inject({ method: "GET", url: "/v1/models" });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.object).toBe("list");
+      expect(body.data.find((model: { id: string }) => model.id === "gpt-5-mini")).toMatchObject({
+        id: "gpt-5-mini",
+        object: "model",
+        owned_by: "tokenops",
+        tokenops: {
+          selected_provider: "mock",
+          pricing_is_estimate: true,
+        },
+      });
+      await app.close();
+    });
+  });
+
   it("replays successful chat completions by idempotency key without creating a second trace", async () => {
     await withProvider("mock", async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });

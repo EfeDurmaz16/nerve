@@ -29,7 +29,7 @@ import { generateEvals, learn } from "@nerve/learner";
 import { runVerifiers } from "@nerve/verifiers";
 import { replay } from "@nerve/replay";
 import { HashedEmbeddingIndex, SemanticCache, SqliteContextBlockCache, SqliteExactCache, SqliteSemanticCache, SqliteToolResultCache, simulatePrefixCache } from "@tokenops/cache";
-import { estimateCost, estimateInputTokens, estimateTextTokens, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
+import { estimateCost, estimateInputTokens, estimateTextTokens, loadPricing, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
 import { normalizeOpenAIChatRequest, normalizeOpenAIEmbeddingsRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
@@ -142,6 +142,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     if (!report.ready) return reply.code(503).send(report);
     return report;
   });
+  app.get("/v1/models", async () => openAIModelsList());
 
   app.post("/v1/chat/completions", async (req, reply) => {
     const wantsStream = Boolean((req.body as { stream?: boolean } | undefined)?.stream);
@@ -879,6 +880,33 @@ function readinessReport(input: { db: DB; dbPath: string; runtime: InferenceRunt
     checks,
     stats: gatewayStats(traces),
     provider_health: providerHealthReport(traces),
+  };
+}
+
+function openAIModelsList() {
+  const pricing = loadPricing(resolve(REPO_ROOT, "config/pricing.json"));
+  const provider = selectedProviderName();
+  const configuredModels = [
+    process.env.TOKENOPS_DEFAULT_MODEL,
+    process.env.GROQ_MODEL,
+    process.env.OPENAI_MODEL,
+    process.env.OLLAMA_MODEL,
+  ].filter((model): model is string => typeof model === "string" && model.length > 0);
+  const ids = Array.from(new Set([...Object.keys(pricing), ...configuredModels])).sort();
+  return {
+    object: "list",
+    data: ids.map((id) => ({
+      id,
+      object: "model",
+      created: 0,
+      owned_by: "tokenops",
+      tokenops: {
+        selected_provider: provider,
+        provider_chain: provider.split(",").map((name) => name.trim()).filter(Boolean),
+        price_per_million_tokens: pricing[id],
+        pricing_is_estimate: true,
+      },
+    })),
   };
 }
 
