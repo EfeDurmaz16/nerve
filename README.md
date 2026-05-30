@@ -1,10 +1,4 @@
-# TokenOps / nerve
-
 > **Adaptive inference control plane for AI apps and agents.**
-
-TokenOps caches, routes, budgets, verifies, traces, and replays model calls before they burn compute. The existing repo name is still `nerve`; the serving-time control plane added here uses TokenOps naming.
-
-Sardis is policy before economic spend. TokenOps is policy before compute spend.
 
 ## Why now
 
