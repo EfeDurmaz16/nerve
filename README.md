@@ -68,6 +68,7 @@ Implemented endpoints:
 - `GET /cache/stats`
 - `POST /cache/clear`
 - `GET /budget/status`
+- `POST /policy/simulate`
 - `GET /rate-limit/status`
 - `GET /runtime/stats`
 - `GET /analyze`
@@ -124,6 +125,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts policy simulate --daily-budget-usd 2 --max-request-cost-usd 0.01
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts smoke ollama
 ```
 
@@ -150,6 +152,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops analyze`
 - `tokenops analyze --trace <id>`
 - `tokenops budget status`
+- `tokenops policy simulate --daily-budget-usd <usd> --max-request-cost-usd <usd>`
 - `tokenops routing policy`
 - `tokenops routing slo`
 - `tokenops routing slo-benchmark`

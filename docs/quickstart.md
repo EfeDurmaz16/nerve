@@ -223,8 +223,19 @@ Inspect policy state:
 
 ```bash
 curl -sS http://127.0.0.1:8787/budget/status
+curl -sS -X POST http://127.0.0.1:8787/policy/simulate \
+  -H 'content-type: application/json' \
+  -d '{"policy":{"daily_budget_usd":2,"max_request_cost_usd":0.01}}'
 curl -sS http://127.0.0.1:8787/rate-limit/status
 curl -sS http://127.0.0.1:8787/runtime/stats
+```
+
+You can run the same simulation directly from the local trace ledger:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts policy simulate \
+  --daily-budget-usd 2 \
+  --max-request-cost-usd 0.01
 ```
 
 Tune the local inference runtime:

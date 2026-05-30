@@ -439,6 +439,47 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("simulates proposed budget policy against stored traces", async () => {
+    const db = openDb(":memory:");
+    const traces = [
+      serverTrace("policy_first", "mock", "model", 25, 0.01, 0.01),
+      serverTrace("policy_expensive", "mock", "model", 25, 0.03, 0.03),
+      serverTrace("policy_after_budget", "mock", "model", 25, 0.01, 0.01),
+    ];
+    const app = createApp({
+      db,
+      dbPath: ":memory:",
+      state: {
+        exactCache: new (await import("@tokenops/cache")).SqliteExactCache(db),
+        semanticCache: new (await import("@tokenops/cache")).SqliteSemanticCache(db),
+        toolResultCache: new (await import("@tokenops/cache")).SqliteToolResultCache(db),
+        contextBlockCache: new (await import("@tokenops/cache")).SqliteContextBlockCache(db),
+        traceStore: {
+          insert(trace: RequestTrace) { traces.unshift(trace); },
+          get(id: string) { return traces.find((trace) => trace.id === id) ?? null; },
+          list(limit = 100) { return traces.slice(0, limit); },
+          clear() { traces.length = 0; },
+        },
+      },
+    });
+    const res = await app.inject({
+      method: "POST",
+      url: "/policy/simulate",
+      payload: {
+        policy: {
+          daily_budget_usd: 0.01,
+          max_request_cost_usd: 0.02,
+        },
+      },
+    });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.totalTraces).toBe(3);
+    expect(body.blocked).toBe(2);
+    expect(body.estimatedAvoidedCostUsd).toBeCloseTo(0.04);
+    await app.close();
+  });
+
   it("enforces per-minute rate limits by user", async () => {
     await withEnv({ TOKENOPS_PROVIDER: "mock", TOKENOPS_RATE_LIMIT_PER_MINUTE: "1" }, async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
@@ -553,7 +594,14 @@ describe("TokenOps server", () => {
   });
 });
 
-function serverTrace(id: string, provider: string, source: RequestTrace["finalResponseSource"], latency: number): RequestTrace {
+function serverTrace(
+  id: string,
+  provider: string,
+  source: RequestTrace["finalResponseSource"],
+  latency: number,
+  baselineCost = 0.01,
+  optimizedCost = provider === "mock" ? 0 : 0.01,
+): RequestTrace {
   return {
     id,
     timestamp: new Date().toISOString(),
@@ -567,7 +615,7 @@ function serverTrace(id: string, provider: string, source: RequestTrace["finalRe
     cache: { exactHit: false, semanticHit: false, toolResultHit: false, contextBlockHit: false, prefixCacheEligibleTokens: 0 },
     routing: { selectedProvider: provider, selectedModel: "gpt-5.5", originalRequestedModel: "gpt-5.5", downgraded: false, escalated: false, reason: "fixture" },
     policy: { allowed: source !== "provider_error", reason: "fixture" },
-    cost: { estimatedBaselineCost: 0.01, estimatedOptimizedCost: provider === "mock" ? 0 : 0.01, estimatedSavings: provider === "mock" ? 0.01 : 0 },
+    cost: { estimatedBaselineCost: baselineCost, estimatedOptimizedCost: optimizedCost, estimatedSavings: Math.max(0, baselineCost - optimizedCost) },
     quality: { verifierUsed: true, verifierPassed: true },
     normalizedHash: id,
     finalResponseSource: source,

@@ -25,8 +25,9 @@ import {
   runReadinessBenchmark,
   runSemanticCacheSafetyBenchmark,
 } from "@tokenops/benchmark";
-import type { ModelResponse, NormalizedRequest } from "@tokenops/core";
+import type { BudgetPolicy, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import { providerHealthReport, SqliteTraceStore } from "@tokenops/ledger";
+import { simulateBudgetPolicy } from "@tokenops/policy";
 import type { ModelProvider } from "@tokenops/providers";
 import { learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
 import { evaluateVerifierCases } from "@tokenops/verifier";
@@ -64,6 +65,7 @@ usage:
   tokenops cache eval [dataset]          run adversarial semantic-cache safety eval
   tokenops analyze [--trace <id>]        show analyzer endpoint hint
   tokenops budget status                 show budget endpoint hint
+  tokenops policy simulate               simulate budget policy over local traces
   tokenops routing policy                learn and print routing policy from local traces
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
@@ -126,6 +128,7 @@ async function main() {
     if (cmd === "cache" && argv[1] === "eval") return cmdTokenOpsCacheEval(argv.slice(2));
     if (cmd === "analyze") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/analyze${getOpt(argv.slice(1), "--trace") ? `?trace=${getOpt(argv.slice(1), "--trace")}` : ""}`);
     if (cmd === "budget" && argv[1] === "status") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/budget/status`);
+    if (cmd === "policy" && argv[1] === "simulate") return cmdTokenOpsPolicySimulate(argv.slice(2));
     if (cmd === "routing" && argv[1] === "policy") return cmdTokenOpsRoutingPolicy();
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
@@ -370,6 +373,15 @@ function cmdTokenOpsProvidersAttempts(args: string[]) {
   console.log(JSON.stringify({ attempts: listTokenOpsProviderAttempts(db, { limit: Number(getOpt(args, "--limit") ?? 100), traceId: getOpt(args, "--trace") }) }, null, 2));
 }
 
+function cmdTokenOpsPolicySimulate(args: string[]) {
+  const db = openDb(DB_PATH);
+  const store = new SqliteTraceStore(db);
+  const result = simulateBudgetPolicy(store.list(Number(getOpt(args, "--limit") ?? 10_000)), {
+    policy: budgetPolicyFromArgs(args),
+  });
+  console.log(JSON.stringify(result, null, 2));
+}
+
 async function cmdTokenOpsVerifyEval() {
   const dataset = getOpt(argv.slice(1), "--dataset");
   const cases = dataset ? readVerifierCases(dataset) : [
@@ -587,6 +599,24 @@ function persistBenchmarkResults(results: Awaited<ReturnType<typeof replayAll>>)
   for (const [index, result] of results.entries()) {
     insertTokenOpsBenchmarkResult(db, `cli_${now}_${index}_${result.dataset}`, result);
   }
+}
+
+function budgetPolicyFromArgs(args: string[]): BudgetPolicy {
+  return {
+    policy_id: getOpt(args, "--policy-id") ?? "cli-simulation",
+    daily_budget_usd: Number(getOpt(args, "--daily-budget-usd") ?? process.env.TOKENOPS_DAILY_BUDGET_USD ?? 10),
+    max_request_cost_usd: Number(getOpt(args, "--max-request-cost-usd") ?? process.env.TOKENOPS_MAX_REQUEST_COST_USD ?? 0.5),
+    max_model: getOpt(args, "--max-model") ?? process.env.TOKENOPS_MAX_MODEL ?? "gpt-5.5",
+    allow_expensive_models: boolArg(args, "--allow-expensive-models", true),
+    block_on_budget_exceeded: boolArg(args, "--block-on-budget-exceeded", true),
+    warn_threshold: Number(getOpt(args, "--warn-threshold") ?? process.env.TOKENOPS_BUDGET_WARN_THRESHOLD ?? 0.8),
+  };
+}
+
+function boolArg(args: string[], name: string, fallback: boolean): boolean {
+  const value = getOpt(args, name);
+  if (value === undefined) return fallback;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
 function expandFiles(args: string[]): string[] {

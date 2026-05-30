@@ -33,7 +33,7 @@ import { estimateCost, estimateInputTokens, estimateTextTokens, stableRequestHas
 import { normalizeOpenAIChatRequest, normalizeOpenAIEmbeddingsRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
-import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota } from "@tokenops/policy";
+import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota, simulateBudgetPolicy } from "@tokenops/policy";
 import { applyLearnedRouting, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "@tokenops/router";
 import { InferenceRuntime } from "@tokenops/runtime";
 import { planCompute } from "@tokenops/ais";
@@ -474,6 +474,15 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       rate_limit: { per_minute: optionalInt("TOKENOPS_RATE_LIMIT_PER_MINUTE") },
     };
   });
+  app.post("/policy/simulate", async (req, reply) => {
+    const body = (req.body ?? {}) as { policy?: Partial<BudgetPolicy>; limit?: number };
+    const limit = Number.isFinite(Number(body.limit)) ? Math.max(1, Math.min(100_000, Number(body.limit))) : 10_000;
+    try {
+      return simulateBudgetPolicy(state.traceStore.list(limit), { policy: budgetPolicyFromPartial(body.policy) });
+    } catch (e) {
+      return reply.code(422).send({ error: (e as Error).message });
+    }
+  });
   app.get("/rate-limit/status", async () => ({ per_minute: optionalInt("TOKENOPS_RATE_LIMIT_PER_MINUTE"), buckets: rateBuckets.size }));
   app.get("/providers/health", async () => providerHealthReport(state.traceStore.list(10_000)));
   app.get("/providers/attempts", async (req) => ({ attempts: listTokenOpsProviderAttempts(db, { limit: Number((req.query as { limit?: string }).limit ?? 100), traceId: (req.query as { trace?: string }).trace }) }));
@@ -633,6 +642,27 @@ function budgetPolicyFromEnv(request?: NormalizedRequest): BudgetPolicy {
     block_on_budget_exceeded: envBool("TOKENOPS_BLOCK_ON_BUDGET_EXCEEDED", true),
     warn_threshold: envNumber("TOKENOPS_BUDGET_WARN_THRESHOLD", 0.8),
   };
+}
+
+function budgetPolicyFromPartial(input?: Partial<BudgetPolicy>): BudgetPolicy {
+  const base = budgetPolicyFromEnv();
+  if (!input) return base;
+  return {
+    ...base,
+    ...input,
+    policy_id: typeof input.policy_id === "string" ? input.policy_id : base.policy_id,
+    daily_budget_usd: finiteNumber(input.daily_budget_usd, base.daily_budget_usd),
+    max_request_cost_usd: finiteNumber(input.max_request_cost_usd, base.max_request_cost_usd),
+    warn_threshold: finiteNumber(input.warn_threshold, base.warn_threshold),
+    max_model: typeof input.max_model === "string" ? input.max_model : base.max_model,
+    allow_expensive_models: typeof input.allow_expensive_models === "boolean" ? input.allow_expensive_models : base.allow_expensive_models,
+    block_on_budget_exceeded: typeof input.block_on_budget_exceeded === "boolean" ? input.block_on_budget_exceeded : base.block_on_budget_exceeded,
+  };
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function spentTodayUsd(traces: RequestTrace[], request?: NormalizedRequest): number {

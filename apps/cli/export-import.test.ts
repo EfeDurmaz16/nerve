@@ -3,6 +3,9 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { openDb } from "@nerve/store";
+import type { RequestTrace } from "@tokenops/core";
+import { SqliteTraceStore } from "@tokenops/ledger";
 
 describe("tokenops snapshot CLI", () => {
   it("exports and imports local TokenOps traces and benchmark results", () => {
@@ -40,6 +43,27 @@ describe("tokenops snapshot CLI", () => {
     const after = JSON.parse(execTokenOps(["stats"], db)) as { tokenops_benchmark_results: number };
     expect(after.tokenops_benchmark_results).toBe(1);
   });
+
+  it("simulates policy impact from local TokenOps traces", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-policy-sim-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("first", 0.01));
+    store.insert(trace("expensive", 0.03));
+
+    const simulation = JSON.parse(execTokenOps([
+      "policy",
+      "simulate",
+      "--daily-budget-usd",
+      "0.01",
+      "--max-request-cost-usd",
+      "0.02",
+    ], dbPath)) as { totalTraces: number; blocked: number; estimatedAvoidedCostUsd: number };
+
+    expect(simulation.totalTraces).toBe(2);
+    expect(simulation.blocked).toBe(1);
+    expect(simulation.estimatedAvoidedCostUsd).toBeCloseTo(0.03);
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {
@@ -48,4 +72,24 @@ function execTokenOps(args: string[], dbPath: string): string {
     env: { ...process.env, TOKENOPS_CLI: "1", NERVE_DB: dbPath },
     encoding: "utf8",
   });
+}
+
+function trace(id: string, baseline: number): RequestTrace {
+  return {
+    id,
+    timestamp: "2026-05-30T00:00:00.000Z",
+    workloadType: "chat",
+    userId: "cli-user",
+    requestedModel: "gpt-5.5",
+    selectedModel: "gpt-5.5",
+    selectedProvider: "mock",
+    inputTokensEstimated: 100,
+    outputTokensEstimated: 50,
+    cache: { exactHit: false, semanticHit: false, toolResultHit: false, contextBlockHit: false, prefixCacheEligibleTokens: 0 },
+    routing: { selectedProvider: "mock", selectedModel: "gpt-5.5", originalRequestedModel: "gpt-5.5", downgraded: false, escalated: false, reason: "fixture" },
+    policy: { allowed: true, reason: "fixture" },
+    cost: { estimatedBaselineCost: baseline, estimatedOptimizedCost: baseline, estimatedSavings: 0 },
+    normalizedHash: id,
+    finalResponseSource: "model",
+  };
 }
