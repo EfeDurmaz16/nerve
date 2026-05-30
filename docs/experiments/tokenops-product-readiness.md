@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:47:17.539Z
+Generated: 2026-05-30T15:52:01.264Z
 
 ## Summary
 
@@ -12,7 +12,8 @@ Generated: 2026-05-30T15:47:17.539Z
 - Estimated replay cost reduction: 95.6%
 - Runtime avoided provider calls: 18
 - Micro-batching latency reduction: 0.9%
-- Mock output tokens/sec: 8000
+- Provider failover: circuit=true, fallback calls=8, failed=0
+- Mock output tokens/sec: 9600
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
@@ -33,6 +34,7 @@ Generated: 2026-05-30T15:47:17.539Z
 - toolOrContextReuseObserved: true
 - runtimeCoalescingAvoidsCalls: true
 - microBatchingReducesLatency: true
+- runtimeCircuitBreakerFallsBackAfterPrimaryFailures: true
 - mockThroughputMeasured: true
 - adaptiveRoutingDowngradesFromTraceEvidence: true
 - providerFallbackSurvivesPrimaryFailure: true

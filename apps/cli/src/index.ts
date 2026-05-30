@@ -18,6 +18,7 @@ import {
   replayDataset,
   runBatchBenchmark,
   runLoadBenchmark,
+  runProviderFailoverBenchmark,
   runProviderThroughputBenchmark,
   runReadinessBenchmark,
   runSemanticCacheSafetyBenchmark,
@@ -47,6 +48,7 @@ usage:
   tokenops replay --all                  run all benchmark datasets
   tokenops load                          run local concurrent inference runtime benchmark
   tokenops batch                         run local micro-batching throughput benchmark
+  tokenops failover                      run provider circuit-breaker/fallback benchmark
   tokenops throughput [mock|ollama|groq] measure provider throughput and tokens/sec
   tokenops proof                         write product-readiness proof report
   tokenops doctor                        inspect local setup, git hygiene, providers, and proof status
@@ -101,6 +103,7 @@ async function main() {
     if (cmd === "replay") return cmdTokenOpsReplay(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
+    if (cmd === "failover") return cmdTokenOpsFailover(argv.slice(1));
     if (cmd === "throughput") return cmdTokenOpsThroughput(argv.slice(1));
     if (cmd === "proof") return cmdTokenOpsProof(argv.slice(1));
     if (cmd === "doctor") return cmdTokenOpsDoctor();
@@ -202,6 +205,17 @@ async function cmdTokenOpsBatch(args: string[]) {
     perItemLatencyMs: Number(getOpt(args, "--per-item-latency-ms") ?? 2),
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+async function cmdTokenOpsFailover(args: string[]) {
+  const result = await runProviderFailoverBenchmark({
+    requests: Number(getOpt(args, "--requests") ?? 12),
+    primaryFailuresBeforeSuccess: Number(getOpt(args, "--primary-failures-before-success") ?? 12),
+    circuitFailureThreshold: Number(getOpt(args, "--circuit-failure-threshold") ?? 2),
+    fallbackLatencyMs: Number(getOpt(args, "--fallback-latency-ms") ?? 1),
+  });
+  console.log(JSON.stringify(result, null, 2));
+  if (result.failedResponses > 0 || !result.circuitOpened) process.exit(1);
 }
 
 async function cmdTokenOpsThroughput(args: string[]) {

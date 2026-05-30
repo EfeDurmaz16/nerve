@@ -11,6 +11,7 @@ import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@token
 import { cheapThenVerify } from "@tokenops/verifier";
 import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
+import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } from "./failover-runner.js";
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
 import { runSemanticCacheSafetyBenchmark, type SemanticSafetyBenchmarkResult } from "./semantic-safety-runner.js";
@@ -42,6 +43,7 @@ export interface ReadinessBenchmarkReport {
     replay: BenchmarkResult[];
     runtimeCoalescing: LoadBenchmarkResult;
     microBatching: BatchBenchmarkResult;
+    providerFailover: ProviderFailoverBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
     providerFallback: ProviderFallbackProof;
@@ -160,6 +162,12 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     perBatchOverheadMs: 10,
     perItemLatencyMs: 1,
   });
+  const providerFailover = await runProviderFailoverBenchmark({
+    requests: 8,
+    primaryFailuresBeforeSuccess: 8,
+    circuitFailureThreshold: 2,
+    fallbackLatencyMs: 1,
+  });
   const mockThroughput = await runProviderThroughputBenchmark({
     provider: "mock",
     requests: opts.throughputRequests ?? 12,
@@ -193,6 +201,11 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     toolOrContextReuseObserved: replay.some((r) => r.tool_result_reuse_rate > 0 || (r.context_block_reuse_rate ?? 0) > 0),
     runtimeCoalescingAvoidsCalls: runtimeCoalescing.avoidedProviderCalls > 0,
     microBatchingReducesLatency: microBatching.estimatedLatencyReduction > 0,
+    runtimeCircuitBreakerFallsBackAfterPrimaryFailures:
+      providerFailover.circuitOpened &&
+      providerFailover.primaryProviderCalls === providerFailover.circuitFailureThreshold &&
+      providerFailover.fallbackProviderCalls === providerFailover.requests &&
+      providerFailover.failedResponses === 0,
     mockThroughputMeasured: !mockThroughput.skipped && mockThroughput.outputTokensPerSecond > 0,
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
@@ -231,6 +244,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       replay,
       runtimeCoalescing,
       microBatching,
+      providerFailover,
       mockThroughput,
       adaptiveRouting,
       providerFallback,
@@ -270,6 +284,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Estimated replay cost reduction: ${report.summary.estimatedReplayCostReductionPct}%`,
     `- Runtime avoided provider calls: ${report.summary.runtimeAvoidedProviderCalls}`,
     `- Micro-batching latency reduction: ${report.summary.batchingLatencyReductionPct}%`,
+    `- Provider failover: circuit=${report.evidence.providerFailover.circuitOpened}, fallback calls=${report.evidence.providerFailover.fallbackProviderCalls}, failed=${report.evidence.providerFailover.failedResponses}`,
     `- Mock output tokens/sec: ${report.summary.mockOutputTokensPerSecond}`,
     `- Groq live measured: ${report.summary.groqLiveMeasured}`,
     `- Adaptive routing route: ${report.evidence.adaptiveRouting.baseRoute.selectedModel} -> ${report.evidence.adaptiveRouting.learnedRoute.selectedModel}`,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -101,6 +101,22 @@ describe("TokenOps benchmark", () => {
     expect(result.passed).toBe(true);
   });
 
+  it("measures runtime circuit-breaker failover to fallback providers", async () => {
+    const result = await runProviderFailoverBenchmark({
+      requests: 8,
+      primaryFailuresBeforeSuccess: 8,
+      circuitFailureThreshold: 2,
+      fallbackLatencyMs: 1,
+    });
+    expect(result.requests).toBe(8);
+    expect(result.primaryProviderCalls).toBe(2);
+    expect(result.circuitOpened).toBe(true);
+    expect(result.circuitRejectedRequests).toBeGreaterThan(0);
+    expect(result.fallbackProviderCalls).toBe(8);
+    expect(result.successfulResponses).toBe(8);
+    expect(result.failedResponses).toBe(0);
+  });
+
   it("summarizes product readiness evidence across replay, runtime, and provider benchmarks", async () => {
     const report = await runReadinessBenchmark({
       loadRequests: 12,
@@ -115,6 +131,10 @@ describe("TokenOps benchmark", () => {
     expect(report.summary.estimatedReplayCostReductionPct).toBeGreaterThan(0);
     expect(report.evidence.runtimeCoalescing.avoidedProviderCalls).toBeGreaterThan(0);
     expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
+    expect(report.evidence.providerFailover.circuitOpened).toBe(true);
+    expect(report.evidence.providerFailover.fallbackProviderCalls).toBe(report.evidence.providerFailover.requests);
+    expect(report.evidence.providerFailover.failedResponses).toBe(0);
+    expect(report.passed.runtimeCircuitBreakerFallsBackAfterPrimaryFailures).toBe(true);
     expect(report.evidence.mockThroughput.outputTokensPerSecond).toBeGreaterThan(0);
     expect(report.evidence.adaptiveRouting.baseRoute.selectedModel).toBe("gpt-5.5");
     expect(report.evidence.adaptiveRouting.learnedRoute.selectedModel).toBe("gpt-5-mini");
