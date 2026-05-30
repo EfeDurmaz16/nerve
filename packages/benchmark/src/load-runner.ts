@@ -35,7 +35,7 @@ export async function runLoadBenchmark(opts: LoadBenchmarkOptions = {}): Promise
     maxQueue: opts.maxQueue ?? requests,
   });
   const provider = new CountingProvider(providerLatencyMs);
-  const inputs = Array.from({ length: requests }, (_, index) => requestFor(index, duplicateRatio));
+  const inputs = Array.from({ length: requests }, (_, index) => requestFor(index, { duplicateRatio, requests, concurrency }));
   const latencies: number[] = [];
   let coalescedResponses = 0;
   const started = Date.now();
@@ -70,9 +70,10 @@ export async function runLoadBenchmark(opts: LoadBenchmarkOptions = {}): Promise
   };
 }
 
-function requestFor(index: number, duplicateRatio: number): NormalizedRequest {
-  const duplicateCount = Math.max(1, Math.floor(1 / Math.max(0.01, 1 - duplicateRatio)));
-  const promptIndex = index < Math.floor(1000 * duplicateRatio) ? index % duplicateCount : index;
+function requestFor(index: number, opts: { duplicateRatio: number; requests: number; concurrency: number }): NormalizedRequest {
+  const duplicateRequests = Math.floor(opts.requests * opts.duplicateRatio);
+  const duplicateRunLength = Math.max(2, Math.min(opts.concurrency, Math.ceil(1 / Math.max(0.01, 1 - opts.duplicateRatio))));
+  const promptIndex = index < duplicateRequests ? Math.floor(index / duplicateRunLength) : index;
   const request = normalizeChatCompletionRequest({
     model: "mock",
     messages: [{ role: "user", content: `load benchmark prompt ${promptIndex}` }],

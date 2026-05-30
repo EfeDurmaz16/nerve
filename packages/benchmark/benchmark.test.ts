@@ -36,6 +36,19 @@ describe("TokenOps benchmark", () => {
     expect(result.runtime.coalescer.coalescedWaiters).toBe(result.coalescedResponses);
   });
 
+  it("keeps runtime coalescing proof deterministic for small samples", async () => {
+    const result = await runLoadBenchmark({
+      requests: 10,
+      concurrency: 4,
+      duplicateRatio: 0.75,
+      providerLatencyMs: 5,
+      maxConcurrentInference: 4,
+    });
+
+    expect(result.providerCalls).toBeLessThan(result.requests);
+    expect(result.avoidedProviderCalls).toBeGreaterThan(0);
+  });
+
   it("measures micro-batching throughput gains", async () => {
     const result = await runBatchBenchmark({
       requests: 16,
