@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:52:01.264Z
+Generated: 2026-05-30T15:56:20.133Z
 
 ## Summary
 
@@ -13,12 +13,13 @@ Generated: 2026-05-30T15:52:01.264Z
 - Runtime avoided provider calls: 18
 - Micro-batching latency reduction: 0.9%
 - Provider failover: circuit=true, fallback calls=8, failed=0
-- Mock output tokens/sec: 9600
+- Mock output tokens/sec: 8000
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
 - Provider fallback route: groq -> mock
 - Verifier gate escalation: cheap pass, strong after fail
+- Verifier routing eval: 3/3 expected escalations, missed=0
 - Policy controls: budget block, loop block
 - Cache safety: docs semantic_safe, risky never_cache
 - Semantic safety eval: 6 cases, unsafe hits=0, safe misses=0
@@ -39,6 +40,7 @@ Generated: 2026-05-30T15:52:01.264Z
 - adaptiveRoutingDowngradesFromTraceEvidence: true
 - providerFallbackSurvivesPrimaryFailure: true
 - verifierGateEscalatesFailedCheapAnswer: true
+- verifierRoutingEvalPasses: true
 - policyControlsBlockWastefulCompute: true
 - semanticCacheSafetyBlocksRiskyPrivateWorkloads: true
 - semanticCacheAdversarialEvalPasses: true

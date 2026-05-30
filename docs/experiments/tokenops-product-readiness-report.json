@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:52:01.264Z",
+  "generatedAt": "2026-05-30T15:56:20.133Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 18,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 9600,
+    "mockOutputTokensPerSecond": 8000,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 30,
+      "wallTimeMs": 33,
       "providerCalls": 12,
       "coalescedResponses": 18,
       "avoidedProviderCalls": 18,
       "p50LatencyMs": 10,
-      "p95LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 17,
-      "estimatedLatencyReduction": 0.9356,
+      "batchedWallTimeMs": 19,
+      "estimatedLatencyReduction": 0.928,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -215,8 +215,8 @@
       "circuitRejectedRequests": 6,
       "fallbackRecoveries": 8,
       "circuitOpened": true,
-      "p50LatencyMs": 1,
-      "p95LatencyMs": 2,
+      "p50LatencyMs": 2,
+      "p95LatencyMs": 3,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 1,
@@ -236,7 +236,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780156380750,
+            "openedUntil": 1780156639440,
             "halfOpenInFlight": 0
           }
         }
@@ -248,13 +248,13 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 5,
+      "wallTimeMs": 6,
       "providerCalls": 2,
       "totalInputTokens": 80,
       "totalOutputTokens": 48,
       "totalTokens": 128,
-      "outputTokensPerSecond": 9600,
-      "totalTokensPerSecond": 25600,
+      "outputTokensPerSecond": 8000,
+      "totalTokensPerSecond": 21333.33,
       "p50LatencyMs": 3,
       "p95LatencyMs": 3,
       "errors": 0,
@@ -338,6 +338,59 @@
         "finalContent": "strong verified answer"
       },
       "reason": "cheap answer is served when verifier passes; failed cheap answer escalates to stronger provider"
+    },
+    "verifierRouting": {
+      "dataset": "benchmark/evals/cheap-then-verify.jsonl",
+      "totalCases": 5,
+      "expectedEscalations": 3,
+      "actualEscalations": 3,
+      "falseEscalations": 0,
+      "missedEscalations": 0,
+      "cheapProviderCalls": 5,
+      "strongProviderCalls": 3,
+      "cases": [
+        {
+          "id": "docs-cheap-pass",
+          "expectedEscalated": false,
+          "actualEscalated": false,
+          "verifierPassed": true,
+          "finalProvider": "cheap",
+          "passed": true
+        },
+        {
+          "id": "support-cheap-pass",
+          "expectedEscalated": false,
+          "actualEscalated": false,
+          "verifierPassed": true,
+          "finalProvider": "cheap",
+          "passed": true
+        },
+        {
+          "id": "cheap-error-escalates",
+          "expectedEscalated": true,
+          "actualEscalated": true,
+          "verifierPassed": false,
+          "finalProvider": "strong",
+          "passed": true
+        },
+        {
+          "id": "cheap-timeout-escalates",
+          "expectedEscalated": true,
+          "actualEscalated": true,
+          "verifierPassed": false,
+          "finalProvider": "strong",
+          "passed": true
+        },
+        {
+          "id": "high-risk-escalates",
+          "expectedEscalated": true,
+          "actualEscalated": true,
+          "verifierPassed": false,
+          "finalProvider": "strong",
+          "passed": true
+        }
+      ],
+      "passed": true
     },
     "policyControls": {
       "budget": {
@@ -463,7 +516,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSWSBKFGNC8BARYRV64VMKYP",
+        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -489,7 +542,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSWSBKFGNC8BARYRV64VMKYP",
+        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -518,7 +571,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSWSBKFGNC8BARYRV64VMKYP",
+        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -546,7 +599,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSWSBKFGNC8BARYRV64VMKYP",
+        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -583,15 +636,15 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 488,
+      "wallTimeMs": 638,
       "providerCalls": 2,
       "totalInputTokens": 120,
-      "totalOutputTokens": 51,
-      "totalTokens": 171,
-      "outputTokensPerSecond": 104.51,
-      "totalTokensPerSecond": 350.41,
-      "p50LatencyMs": 277,
-      "p95LatencyMs": 277,
+      "totalOutputTokens": 52,
+      "totalTokens": 172,
+      "outputTokensPerSecond": 81.5,
+      "totalTokensPerSecond": 269.59,
+      "p50LatencyMs": 421,
+      "p95LatencyMs": 421,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -630,6 +683,7 @@
     "adaptiveRoutingDowngradesFromTraceEvidence": true,
     "providerFallbackSurvivesPrimaryFailure": true,
     "verifierGateEscalatesFailedCheapAnswer": true,
+    "verifierRoutingEvalPasses": true,
     "policyControlsBlockWastefulCompute": true,
     "semanticCacheSafetyBlocksRiskyPrivateWorkloads": true,
     "semanticCacheAdversarialEvalPasses": true,

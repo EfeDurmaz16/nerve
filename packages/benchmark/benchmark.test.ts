@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -117,6 +117,16 @@ describe("TokenOps benchmark", () => {
     expect(result.failedResponses).toBe(0);
   });
 
+  it("measures cheap-then-verify routing over regression cases", async () => {
+    const result = await runCheapThenVerifyBenchmark("benchmark/evals/cheap-then-verify.jsonl");
+    expect(result.totalCases).toBeGreaterThan(0);
+    expect(result.expectedEscalations).toBeGreaterThan(0);
+    expect(result.actualEscalations).toBe(result.expectedEscalations);
+    expect(result.falseEscalations).toBe(0);
+    expect(result.missedEscalations).toBe(0);
+    expect(result.passed).toBe(true);
+  });
+
   it("summarizes product readiness evidence across replay, runtime, and provider benchmarks", async () => {
     const report = await runReadinessBenchmark({
       loadRequests: 12,
@@ -146,6 +156,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.verifierGate.failCase.escalatedAfterFail).toBe(true);
     expect(report.evidence.verifierGate.failCase.finalProvider).toBe("strong");
     expect(report.passed.verifierGateEscalatesFailedCheapAnswer).toBe(true);
+    expect(report.evidence.verifierRouting.expectedEscalations).toBeGreaterThan(0);
+    expect(report.evidence.verifierRouting.actualEscalations).toBe(report.evidence.verifierRouting.expectedEscalations);
+    expect(report.evidence.verifierRouting.missedEscalations).toBe(0);
+    expect(report.passed.verifierRoutingEvalPasses).toBe(true);
     expect(report.evidence.policyControls.budget.action).toBe("block");
     expect(report.evidence.policyControls.loop.action).toBe("block");
     expect(report.passed.policyControlsBlockWastefulCompute).toBe(true);

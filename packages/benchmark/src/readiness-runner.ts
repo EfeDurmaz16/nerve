@@ -15,6 +15,7 @@ import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } fr
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
 import { runSemanticCacheSafetyBenchmark, type SemanticSafetyBenchmarkResult } from "./semantic-safety-runner.js";
+import { runCheapThenVerifyBenchmark, type CheapThenVerifyBenchmarkResult } from "./verifier-routing-runner.js";
 
 export interface ReadinessBenchmarkOptions {
   loadRequests?: number;
@@ -48,6 +49,7 @@ export interface ReadinessBenchmarkReport {
     adaptiveRouting: AdaptiveRoutingProof;
     providerFallback: ProviderFallbackProof;
     verifierGate: VerifierGateProof;
+    verifierRouting: CheapThenVerifyBenchmarkResult;
     policyControls: PolicyControlsProof;
     cacheSafety: CacheSafetyProof;
     semanticSafety: SemanticSafetyBenchmarkResult;
@@ -184,6 +186,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const adaptiveRouting = buildAdaptiveRoutingProof();
   const providerFallback = await buildProviderFallbackProof();
   const verifierGate = await buildVerifierGateProof();
+  const verifierRouting = await runCheapThenVerifyBenchmark("benchmark/evals/cheap-then-verify.jsonl");
   const policyControls = buildPolicyControlsProof();
   const cacheSafety = buildCacheSafetyProof();
   const semanticSafety = await runSemanticCacheSafetyBenchmark("benchmark/evals/semantic-cache-safety.jsonl");
@@ -210,6 +213,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
+    verifierRoutingEvalPasses: verifierRouting.passed && verifierRouting.expectedEscalations > 0 && verifierRouting.missedEscalations === 0,
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     semanticCacheAdversarialEvalPasses: semanticSafety.passed && semanticSafety.falsePositiveUnsafeHits === 0 && semanticSafety.falseNegativeSafeMisses === 0,
@@ -249,6 +253,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       adaptiveRouting,
       providerFallback,
       verifierGate,
+      verifierRouting,
       policyControls,
       cacheSafety,
       semanticSafety,
@@ -291,6 +296,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
+    `- Verifier routing eval: ${report.evidence.verifierRouting.actualEscalations}/${report.evidence.verifierRouting.expectedEscalations} expected escalations, missed=${report.evidence.verifierRouting.missedEscalations}`,
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Semantic safety eval: ${report.evidence.semanticSafety.totalCases} cases, unsafe hits=${report.evidence.semanticSafety.falsePositiveUnsafeHits}, safe misses=${report.evidence.semanticSafety.falseNegativeSafeMisses}`,

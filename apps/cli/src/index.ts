@@ -17,6 +17,7 @@ import {
   replayAll,
   replayDataset,
   runBatchBenchmark,
+  runCheapThenVerifyBenchmark,
   runLoadBenchmark,
   runProviderFailoverBenchmark,
   runProviderThroughputBenchmark,
@@ -63,6 +64,7 @@ usage:
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops providers health              score provider health from local traces
   tokenops verify eval [--dataset file]  run verifier eval harness
+  tokenops verify routing [dataset]      run cheap-then-verify routing eval
   tokenops compare groq                  run live Groq direct-vs-gateway comparison
   tokenops compare openai                run live OpenAI direct-vs-gateway comparison
   tokenops smoke ollama                  run availability-aware Ollama gateway smoke
@@ -119,6 +121,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
+    if (cmd === "verify" && argv[1] === "routing") return cmdTokenOpsVerifyRouting(argv.slice(2));
     if (cmd === "compare" && argv[1] === "groq") return cmdTokenOpsCompareGroq();
     if (cmd === "compare" && argv[1] === "openai") return cmdTokenOpsCompareOpenAI();
     if (cmd === "smoke" && argv[1] === "ollama") return cmdTokenOpsSmokeOllama();
@@ -323,6 +326,13 @@ async function cmdTokenOpsVerifyEval() {
     cases,
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+async function cmdTokenOpsVerifyRouting(args: string[]) {
+  const dataset = args[0] ?? "benchmark/evals/cheap-then-verify.jsonl";
+  const result = await runCheapThenVerifyBenchmark(dataset);
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.passed) process.exit(1);
 }
 
 function cmdTokenOpsCompareGroq() {
