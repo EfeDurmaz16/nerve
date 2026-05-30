@@ -10,6 +10,7 @@ interface SemanticEntry {
 export class SemanticCache {
   private readonly entries: SemanticEntry[] = [];
   private readonly embeddings = new HashedEmbeddingIndex();
+  private rejectedPoisonedEntries = 0;
   constructor(private readonly threshold = 0.72) {}
 
   get(request: NormalizedRequest): ModelResponse | null {
@@ -25,12 +26,24 @@ export class SemanticCache {
 
   set(request: NormalizedRequest, response: ModelResponse): void {
     if (classifyCacheability(request) !== "semantic_safe") return;
+    if (isPoisonedSemanticResponse(response)) {
+      this.rejectedPoisonedEntries += 1;
+      return;
+    }
     this.entries.push({ text: request.messages.map(messageToText).join(" "), response });
   }
 
   stats() {
-    return { entries: this.entries.length, threshold: this.threshold };
+    return { entries: this.entries.length, threshold: this.threshold, rejectedPoisonedEntries: this.rejectedPoisonedEntries };
   }
+}
+
+export function isPoisonedSemanticResponse(response: ModelResponse): boolean {
+  const text = response.content.toLowerCase();
+  return /ignore (all )?(previous|prior|above) instructions/.test(text) ||
+    /reveal (the )?(system prompt|developer message|secrets?|api keys?|private keys?)/.test(text) ||
+    /exfiltrat(e|ion)|jailbreak|prompt injection/.test(text) ||
+    /BEGIN_SYSTEM_PROMPT|BEGIN DEVELOPER MESSAGE/i.test(response.content);
 }
 
 export function lexicalSimilarity(a: string, b: string): number {

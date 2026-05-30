@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T19:13:58.487Z
+Generated: 2026-05-30T19:20:11.917Z
 
 ## Summary
 
@@ -15,7 +15,7 @@ Generated: 2026-05-30T19:13:58.487Z
 - Priority scheduling: foreground -> background-1 -> background-2
 - Background tasks: completed=3, failed=0
 - Provider failover: circuit=true, fallback calls=8, failed=0
-- Mock output tokens/sec: 41142.86
+- Mock output tokens/sec: 32000
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
@@ -26,7 +26,7 @@ Generated: 2026-05-30T19:13:58.487Z
 - Verifier routing eval: 3/3 expected escalations, missed=0
 - Policy controls: budget block, loop block
 - Cache safety: docs semantic_safe, risky never_cache
-- Semantic safety eval: 12 cases, unsafe hits=0, safe misses=0
+- Semantic safety eval: 13 cases, unsafe hits=0, safe misses=0
 - Semantic threshold sweep: recommended=0.2, thresholds=5
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
 - Gateway compatibility: chat.completion + response + embeddings(4d), usage=true, tokenops=true

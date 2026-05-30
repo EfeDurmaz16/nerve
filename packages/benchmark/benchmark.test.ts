@@ -221,6 +221,7 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.semanticSafety.totalCases).toBeGreaterThan(0);
     expect(report.evidence.semanticSafety.falsePositiveUnsafeHits).toBe(0);
     expect(report.evidence.semanticSafety.falseNegativeSafeMisses).toBe(0);
+    expect(report.evidence.semanticSafety.poisonedResponseBlocked).toBeGreaterThan(0);
     expect(report.passed.semanticCacheAdversarialEvalPasses).toBe(true);
     expect(report.evidence.semanticThresholdSweep.recommendedThreshold).not.toBeNull();
     expect(report.passed.semanticThresholdSweepFindsSafeThreshold).toBe(true);

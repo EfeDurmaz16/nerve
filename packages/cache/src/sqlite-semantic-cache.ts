@@ -7,7 +7,7 @@ import {
 } from "@nerve/store";
 import { hashJson, messageToText, type CacheEntry, type ModelResponse, type NormalizedRequest } from "@tokenops/core";
 import { classifyCacheability } from "@tokenops/profiler";
-import { semanticSimilarity } from "./semantic-cache.js";
+import { isPoisonedSemanticResponse, semanticSimilarity } from "./semantic-cache.js";
 
 export class SqliteSemanticCache {
   constructor(private readonly db: DB, private readonly threshold = 0.72) {}
@@ -31,6 +31,7 @@ export class SqliteSemanticCache {
 
   set(request: NormalizedRequest, response: ModelResponse, ttlMs = 60 * 60 * 1000): void {
     if (classifyCacheability(request) !== "semantic_safe") return;
+    if (isPoisonedSemanticResponse(response)) return;
     const text = semanticText(request);
     const entry: CacheEntry<ModelResponse> = {
       key: semanticCacheKey(request),

@@ -10,6 +10,12 @@ TokenOps implements multiple reuse layers:
 
 Semantic cache is disabled for private, payment, legal, medical, financial, security-sensitive, and code-modification requests.
 
+Semantic cache also rejects poisoned responses before storage. The local guard
+blocks common prompt-injection and exfiltration markers such as requests to
+ignore previous instructions, reveal system prompts, or expose secrets. This is
+not a substitute for model-graded cache promotion, but it prevents obvious
+poisoned seed answers from being reused as safe documentation/support answers.
+
 ## Persistence
 
 The local gateway stores TokenOps cache entries in SQLite through `tokenops_cache_entries`.

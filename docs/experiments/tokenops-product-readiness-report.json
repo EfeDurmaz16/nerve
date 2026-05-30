@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T19:13:58.487Z",
+  "generatedAt": "2026-05-30T19:20:11.917Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 15,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 41142.86,
+    "mockOutputTokensPerSecond": 32000,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,11 +152,11 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 28,
+      "wallTimeMs": 27,
       "providerCalls": 15,
       "coalescedResponses": 15,
       "avoidedProviderCalls": 15,
-      "p50LatencyMs": 10,
+      "p50LatencyMs": 9,
       "p95LatencyMs": 10,
       "runtime": {
         "scheduler": {
@@ -190,8 +190,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 18,
-      "estimatedLatencyReduction": 0.9318,
+      "batchedWallTimeMs": 17,
+      "estimatedLatencyReduction": 0.9356,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -277,7 +277,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780168497954,
+            "openedUntil": 1780168871420,
             "halfOpenInFlight": 0
           }
         }
@@ -289,14 +289,14 @@
       "skipped": false,
       "requests": 12,
       "concurrency": 4,
-      "wallTimeMs": 7,
+      "wallTimeMs": 9,
       "providerCalls": 12,
       "totalInputTokens": 480,
       "totalOutputTokens": 288,
       "totalTokens": 768,
-      "outputTokensPerSecond": 41142.86,
-      "totalTokensPerSecond": 109714.29,
-      "p50LatencyMs": 2,
+      "outputTokensPerSecond": 32000,
+      "totalTokensPerSecond": 85333.33,
+      "p50LatencyMs": 3,
       "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
@@ -357,7 +357,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T19:13:58.456Z",
+        "generatedAt": "2026-05-30T19:20:11.884Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -526,13 +526,15 @@
     "semanticSafety": {
       "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
       "threshold": 0.3,
-      "totalCases": 12,
+      "totalCases": 13,
       "safeReuseAttempts": 4,
       "safeReuseHits": 4,
-      "riskyReuseAttempts": 8,
-      "riskyReuseBlocked": 8,
+      "riskyReuseAttempts": 9,
+      "riskyReuseBlocked": 9,
       "falsePositiveUnsafeHits": 0,
       "falseNegativeSafeMisses": 0,
+      "poisonedResponseAttempts": 1,
+      "poisonedResponseBlocked": 1,
       "cases": [
         {
           "id": "docs-quickstart-paraphrase",
@@ -641,6 +643,15 @@
           "hit": false,
           "passed": true,
           "reason": "semantic cache behavior matched safety expectation"
+        },
+        {
+          "id": "poisoned-response-seed-block",
+          "expected": "blocked",
+          "seedCacheability": "semantic_safe",
+          "probeCacheability": "semantic_safe",
+          "hit": false,
+          "passed": true,
+          "reason": "semantic cache behavior matched safety expectation"
         }
       ],
       "passed": true
@@ -651,13 +662,15 @@
         {
           "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
           "threshold": 0.2,
-          "totalCases": 12,
+          "totalCases": 13,
           "safeReuseAttempts": 4,
           "safeReuseHits": 4,
-          "riskyReuseAttempts": 8,
-          "riskyReuseBlocked": 8,
+          "riskyReuseAttempts": 9,
+          "riskyReuseBlocked": 9,
           "falsePositiveUnsafeHits": 0,
           "falseNegativeSafeMisses": 0,
+          "poisonedResponseAttempts": 1,
+          "poisonedResponseBlocked": 1,
           "cases": [
             {
               "id": "docs-quickstart-paraphrase",
@@ -763,6 +776,15 @@
               "expected": "blocked",
               "seedCacheability": "semantic_safe",
               "probeCacheability": "never_cache",
+              "hit": false,
+              "passed": true,
+              "reason": "semantic cache behavior matched safety expectation"
+            },
+            {
+              "id": "poisoned-response-seed-block",
+              "expected": "blocked",
+              "seedCacheability": "semantic_safe",
+              "probeCacheability": "semantic_safe",
               "hit": false,
               "passed": true,
               "reason": "semantic cache behavior matched safety expectation"
@@ -773,13 +795,15 @@
         {
           "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
           "threshold": 0.3,
-          "totalCases": 12,
+          "totalCases": 13,
           "safeReuseAttempts": 4,
           "safeReuseHits": 4,
-          "riskyReuseAttempts": 8,
-          "riskyReuseBlocked": 8,
+          "riskyReuseAttempts": 9,
+          "riskyReuseBlocked": 9,
           "falsePositiveUnsafeHits": 0,
           "falseNegativeSafeMisses": 0,
+          "poisonedResponseAttempts": 1,
+          "poisonedResponseBlocked": 1,
           "cases": [
             {
               "id": "docs-quickstart-paraphrase",
@@ -885,6 +909,15 @@
               "expected": "blocked",
               "seedCacheability": "semantic_safe",
               "probeCacheability": "never_cache",
+              "hit": false,
+              "passed": true,
+              "reason": "semantic cache behavior matched safety expectation"
+            },
+            {
+              "id": "poisoned-response-seed-block",
+              "expected": "blocked",
+              "seedCacheability": "semantic_safe",
+              "probeCacheability": "semantic_safe",
               "hit": false,
               "passed": true,
               "reason": "semantic cache behavior matched safety expectation"
@@ -895,13 +928,15 @@
         {
           "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
           "threshold": 0.4,
-          "totalCases": 12,
+          "totalCases": 13,
           "safeReuseAttempts": 4,
           "safeReuseHits": 4,
-          "riskyReuseAttempts": 8,
-          "riskyReuseBlocked": 8,
+          "riskyReuseAttempts": 9,
+          "riskyReuseBlocked": 9,
           "falsePositiveUnsafeHits": 0,
           "falseNegativeSafeMisses": 0,
+          "poisonedResponseAttempts": 1,
+          "poisonedResponseBlocked": 1,
           "cases": [
             {
               "id": "docs-quickstart-paraphrase",
@@ -1007,6 +1042,15 @@
               "expected": "blocked",
               "seedCacheability": "semantic_safe",
               "probeCacheability": "never_cache",
+              "hit": false,
+              "passed": true,
+              "reason": "semantic cache behavior matched safety expectation"
+            },
+            {
+              "id": "poisoned-response-seed-block",
+              "expected": "blocked",
+              "seedCacheability": "semantic_safe",
+              "probeCacheability": "semantic_safe",
               "hit": false,
               "passed": true,
               "reason": "semantic cache behavior matched safety expectation"
@@ -1017,13 +1061,15 @@
         {
           "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
           "threshold": 0.5,
-          "totalCases": 12,
+          "totalCases": 13,
           "safeReuseAttempts": 4,
           "safeReuseHits": 3,
-          "riskyReuseAttempts": 8,
-          "riskyReuseBlocked": 8,
+          "riskyReuseAttempts": 9,
+          "riskyReuseBlocked": 9,
           "falsePositiveUnsafeHits": 0,
           "falseNegativeSafeMisses": 1,
+          "poisonedResponseAttempts": 1,
+          "poisonedResponseBlocked": 1,
           "cases": [
             {
               "id": "docs-quickstart-paraphrase",
@@ -1129,6 +1175,15 @@
               "expected": "blocked",
               "seedCacheability": "semantic_safe",
               "probeCacheability": "never_cache",
+              "hit": false,
+              "passed": true,
+              "reason": "semantic cache behavior matched safety expectation"
+            },
+            {
+              "id": "poisoned-response-seed-block",
+              "expected": "blocked",
+              "seedCacheability": "semantic_safe",
+              "probeCacheability": "semantic_safe",
               "hit": false,
               "passed": true,
               "reason": "semantic cache behavior matched safety expectation"
@@ -1139,13 +1194,15 @@
         {
           "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
           "threshold": 0.7,
-          "totalCases": 12,
+          "totalCases": 13,
           "safeReuseAttempts": 4,
           "safeReuseHits": 2,
-          "riskyReuseAttempts": 8,
-          "riskyReuseBlocked": 8,
+          "riskyReuseAttempts": 9,
+          "riskyReuseBlocked": 9,
           "falsePositiveUnsafeHits": 0,
           "falseNegativeSafeMisses": 2,
+          "poisonedResponseAttempts": 1,
+          "poisonedResponseBlocked": 1,
           "cases": [
             {
               "id": "docs-quickstart-paraphrase",
@@ -1251,6 +1308,15 @@
               "expected": "blocked",
               "seedCacheability": "semantic_safe",
               "probeCacheability": "never_cache",
+              "hit": false,
+              "passed": true,
+              "reason": "semantic cache behavior matched safety expectation"
+            },
+            {
+              "id": "poisoned-response-seed-block",
+              "expected": "blocked",
+              "seedCacheability": "semantic_safe",
+              "probeCacheability": "semantic_safe",
               "hit": false,
               "passed": true,
               "reason": "semantic cache behavior matched safety expectation"
@@ -1263,13 +1329,15 @@
       "recommended": {
         "dataset": "benchmark/evals/semantic-cache-safety.jsonl",
         "threshold": 0.2,
-        "totalCases": 12,
+        "totalCases": 13,
         "safeReuseAttempts": 4,
         "safeReuseHits": 4,
-        "riskyReuseAttempts": 8,
-        "riskyReuseBlocked": 8,
+        "riskyReuseAttempts": 9,
+        "riskyReuseBlocked": 9,
         "falsePositiveUnsafeHits": 0,
         "falseNegativeSafeMisses": 0,
+        "poisonedResponseAttempts": 1,
+        "poisonedResponseBlocked": 1,
         "cases": [
           {
             "id": "docs-quickstart-paraphrase",
@@ -1378,6 +1446,15 @@
             "hit": false,
             "passed": true,
             "reason": "semantic cache behavior matched safety expectation"
+          },
+          {
+            "id": "poisoned-response-seed-block",
+            "expected": "blocked",
+            "seedCacheability": "semantic_safe",
+            "probeCacheability": "semantic_safe",
+            "hit": false,
+            "passed": true,
+            "reason": "semantic cache behavior matched safety expectation"
           }
         ],
         "passed": true
@@ -1447,7 +1524,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX4XCPQA22TSPDXFJ1W4HK4",
+        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1473,7 +1550,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX4XCPQA22TSPDXFJ1W4HK4",
+        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1502,7 +1579,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX4XCPQA22TSPDXFJ1W4HK4",
+        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1530,7 +1607,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX4XCPQA22TSPDXFJ1W4HK4",
+        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1567,15 +1644,15 @@
       "skipped": false,
       "requests": 4,
       "concurrency": 2,
-      "wallTimeMs": 483,
+      "wallTimeMs": 444,
       "providerCalls": 4,
       "totalInputTokens": 240,
-      "totalOutputTokens": 110,
-      "totalTokens": 350,
-      "outputTokensPerSecond": 227.74,
-      "totalTokensPerSecond": 724.64,
-      "p50LatencyMs": 240,
-      "p95LatencyMs": 280,
+      "totalOutputTokens": 106,
+      "totalTokens": 346,
+      "outputTokensPerSecond": 238.74,
+      "totalTokensPerSecond": 779.28,
+      "p50LatencyMs": 241,
+      "p95LatencyMs": 268,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {

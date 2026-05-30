@@ -12,6 +12,7 @@ export interface SemanticSafetyCase {
   seed: unknown;
   probe: unknown;
   expected: SemanticSafetyExpectation;
+  seed_response?: string;
 }
 
 export interface SemanticSafetyCaseResult {
@@ -34,6 +35,8 @@ export interface SemanticSafetyBenchmarkResult {
   riskyReuseBlocked: number;
   falsePositiveUnsafeHits: number;
   falseNegativeSafeMisses: number;
+  poisonedResponseAttempts: number;
+  poisonedResponseBlocked: number;
   cases: SemanticSafetyCaseResult[];
   passed: boolean;
 }
@@ -58,7 +61,7 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string, opts:
       id: `semantic_safety_${testCase.id}`,
       model: seed.requested_model,
       provider: "mock",
-      content: `cached response for ${testCase.id}`,
+      content: testCase.seed_response ?? `cached response for ${testCase.id}`,
       finish_reason: "stop",
       input_tokens: 1,
       output_tokens: 1,
@@ -69,7 +72,7 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string, opts:
     const hit = cache.get(probe) !== null;
     const seedCacheability = classifyCacheability(seed);
     const probeCacheability = classifyCacheability(probe);
-    const passed = testCase.expected === "safe_hit" ? hit && probeCacheability === "semantic_safe" : !hit && probeCacheability !== "semantic_safe";
+    const passed = testCase.expected === "safe_hit" ? hit && probeCacheability === "semantic_safe" : !hit;
     results.push({
       id: testCase.id,
       expected: testCase.expected,
@@ -87,6 +90,8 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string, opts:
   const riskyCases = results.filter((result) => result.expected === "blocked");
   const falsePositiveUnsafeHits = riskyCases.filter((result) => result.hit).length;
   const falseNegativeSafeMisses = safeCases.filter((result) => !result.hit).length;
+  const poisonedResponseAttempts = cases.filter((testCase) => typeof testCase.seed_response === "string").length;
+  const poisonedResponseBlocked = cases.filter((testCase, index) => typeof testCase.seed_response === "string" && !results[index]?.hit).length;
 
   return {
     dataset: datasetPath,
@@ -98,6 +103,8 @@ export async function runSemanticCacheSafetyBenchmark(datasetPath: string, opts:
     riskyReuseBlocked: riskyCases.filter((result) => !result.hit).length,
     falsePositiveUnsafeHits,
     falseNegativeSafeMisses,
+    poisonedResponseAttempts,
+    poisonedResponseBlocked,
     cases: results,
     passed: results.length > 0 && falsePositiveUnsafeHits === 0 && falseNegativeSafeMisses === 0 && results.every((result) => result.passed),
   };
