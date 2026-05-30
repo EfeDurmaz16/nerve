@@ -14,6 +14,20 @@ For every gateway request, AIS emits a compute plan with:
 
 The current implementation is heuristic and deterministic. It is designed to become policy/data-driven later.
 
+## Preflight Planning
+
+The gateway exposes AIS as a no-compute preflight endpoint:
+
+```text
+POST /v1/tokenops/plan
+POST /plan
+```
+
+The endpoint accepts the same OpenAI-style chat request body used by
+`/v1/chat/completions`, then runs normalization, workload profiling, budget
+policy, cache checks, routing, prefix/context reuse simulation, and compute-plan
+generation. It does not call a provider and does not write a request trace.
+
 ## Local Background Execution
 
 AIS background tasks are now paired with a local in-process `BackgroundTaskQueue`

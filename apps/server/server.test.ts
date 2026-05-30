@@ -64,6 +64,27 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("plans inference without calling a provider or writing a trace", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/tokenops/plan",
+        payload: { model: "gpt-5.5", messages: [{ role: "user", content: "docs quickstart cache policy" }] },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.provider_call).toBe(false);
+      expect(body.would_call_provider).toBe(true);
+      expect(body.profile.workloadType).toBe("docs_qa");
+      expect(body.compute_plan.foregroundAction).toBe("call_model");
+      expect(body.routing.selectedModel).toBe("gpt-5-mini");
+      expect(body.cost.estimatedBaselineCost).toBeGreaterThan(body.cost.estimatedOptimizedCost);
+      expect((await app.inject({ method: "GET", url: "/traces" })).json().traces).toHaveLength(0);
+      await app.close();
+    });
+  });
+
   it("exposes readiness with runtime, provider, cache, and trace checks", async () => {
     await withProvider("mock", async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });

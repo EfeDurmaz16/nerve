@@ -56,6 +56,8 @@ curl -sS -X POST http://127.0.0.1:8787/v1/embeddings \
 
 Implemented endpoints:
 
+- `POST /plan`
+- `POST /v1/tokenops/plan`
 - `POST /v1/chat/completions`
 - `POST /v1/responses`
 - `POST /v1/embeddings`
@@ -81,6 +83,11 @@ Implemented endpoints:
 - `GET /providers/health`
 
 `POST /replay` runs local benchmark datasets through the baseline-vs-optimized TokenOps runner and stores results in SQLite.
+
+`POST /v1/tokenops/plan` runs the request normalizer, profiler, policy firewall,
+cache checks, router, and AIS compute planner without calling a provider or
+writing a trace. Use it as a preflight control-plane decision before burning
+inference compute.
 
 ## Architecture
 

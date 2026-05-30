@@ -50,6 +50,9 @@ Smoke test:
 
 ```bash
 curl -sS http://127.0.0.1:8787/health
+curl -sS -X POST http://127.0.0.1:8787/v1/tokenops/plan \
+  -H 'content-type: application/json' \
+  -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart"}]}'
 curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
   -H 'content-type: application/json' \
   -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart"}]}'
@@ -60,6 +63,10 @@ curl -sS -X POST http://127.0.0.1:8787/v1/embeddings \
   -H 'content-type: application/json' \
   -d '{"model":"text-embedding-3-small","input":["TokenOps cache policy","Adaptive inference control plane"],"dimensions":32}'
 ```
+
+The plan endpoint is a no-compute preflight. It returns workload profile,
+cache hits, route, budget decision, estimated cost, runtime stats, and the AIS
+compute plan without calling the provider or writing a trace.
 
 Retry-safe chat completions can use `idempotency-key`. Reusing the same key with the same request returns the stored response and does not create another trace or provider call; reusing it with a different request returns `409`.
 

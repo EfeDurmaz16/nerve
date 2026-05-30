@@ -136,6 +136,121 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     return r.receipt_id;
   }
 
+  function buildInferencePlanPreview(body: unknown) {
+    let request = normalizeOpenAIChatRequest(body);
+    const providerName = selectedProviderName();
+    const profile = classifyWorkload(request);
+    request = {
+      ...request,
+      provider: providerName,
+      workload_type: profile.workloadType,
+      risk_level: profile.riskLevel,
+    };
+    request = { ...request, normalized_hash: stableRequestHash(request) };
+
+    const complexity = estimateComplexity(request);
+    const prefix = simulatePrefixCache(request);
+    const contextObservation = state.contextBlockCache.observe(request);
+    const inputTokens = estimateInputTokens(request);
+    const baselineCost = estimateCost(request.requested_model, inputTokens, request.max_output_tokens ?? 512);
+    const tracesForPolicy = state.traceStore.list(10_000);
+    const policy = evaluateBudgetPolicy({
+      request,
+      estimate: baselineCost,
+      riskLevel: profile.riskLevel,
+      policy: budgetPolicyFromEnv(request),
+      spentTodayUsd: spentTodayUsd(tracesForPolicy, request),
+    });
+    const policyShadow = budgetPolicyShadow(policy);
+    const effectivePolicy = policyShadow?.effective ?? policy;
+    let route = {
+      ...routeModel({
+        request,
+        workloadType: profile.workloadType,
+        complexity,
+        riskLevel: profile.riskLevel,
+        budgetAction: effectivePolicy.action === "downgrade" ? "downgrade" : "allow",
+      }),
+      selectedProvider: providerName,
+    };
+    const healthReport = providerHealthReport(tracesForPolicy);
+    if (process.env.TOKENOPS_ADAPTIVE_ROUTING === "1") {
+      route = applyLearnedRouting(
+        route,
+        { workloadType: profile.workloadType, riskLevel: profile.riskLevel },
+        learnRoutingPolicy(tracesForPolicy, {
+          minSamples: Number(process.env.TOKENOPS_ROUTING_MIN_SAMPLES ?? 2),
+          minVerifierPassRate: Number(process.env.TOKENOPS_ROUTING_MIN_VERIFIER_PASS_RATE ?? 0.8),
+        }),
+        {
+          providerHealth: healthReport,
+          minProviderHealthScore: Number(process.env.TOKENOPS_ROUTING_MIN_PROVIDER_HEALTH ?? 0),
+        },
+      );
+    }
+    if (process.env.TOKENOPS_PROVIDER_ARBITRAGE === "1") {
+      route = applyProviderArbitrage(route, healthReport, {
+        candidates: providerArbitrageCandidates(providerName),
+        minHealthScore: envNumber("TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH", 0.8),
+        maxP95LatencyMs: envNumber("TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS", Number.MAX_SAFE_INTEGER),
+      });
+    }
+    if (process.env.TOKENOPS_SLO_ROUTING === "1") {
+      route = applySloRouting(
+        route,
+        learnSloRoutingPolicy(tracesForPolicy, sloPolicyOptionsFromEnv()),
+        { fallbackProviders: providerFallbackNames(providerName) },
+      );
+    }
+
+    const optimizedCost = estimateCost(route.selectedModel, inputTokens, request.max_output_tokens ?? 512);
+    const exactHit = state.exactCache.get(request) !== null;
+    const semanticHit = !exactHit && state.semanticCache.get(request) !== null;
+    const computePlan = planCompute({
+      request,
+      exactHit,
+      semanticHit,
+      prefixCacheEligibleTokens: prefix.cachedPrefixEligibleTokens,
+      route,
+      policy: effectivePolicy,
+      expectedCostUsd: optimizedCost.totalCostUsd,
+      riskLevel: profile.riskLevel,
+    });
+
+    return {
+      product: "TokenOps",
+      provider_call: false,
+      would_call_provider: computePlan.foregroundAction === "call_model" && effectivePolicy.allowed,
+      normalized_request: {
+        id: request.id,
+        normalized_hash: request.normalized_hash,
+        requested_model: request.requested_model,
+        provider: request.provider,
+        user_id: request.user_id,
+        agent_id: request.agent_id,
+      },
+      profile,
+      complexity,
+      cache: {
+        exactHit,
+        semanticHit,
+        contextBlockHit: contextObservation.hit,
+        prefixCacheEligibleTokens: prefix.cachedPrefixEligibleTokens,
+      },
+      routing: route,
+      policy: effectivePolicy,
+      ...(policyShadow ? { policy_shadow: { mode: "shadow", decision: policyShadow.observed } } : {}),
+      cost: {
+        estimatedBaselineCost: baselineCost.totalCostUsd,
+        estimatedOptimizedCost: computePlan.foregroundAction.includes("cache") ? 0 : optimizedCost.totalCostUsd,
+        estimatedSavings: Math.max(0, baselineCost.totalCostUsd - (computePlan.foregroundAction.includes("cache") ? 0 : optimizedCost.totalCostUsd)),
+      },
+      prefix,
+      compute_plan: computePlan,
+      runtime: { stats: runtime.stats() },
+    };
+  }
+
   app.get("/health", async () => ({ ok: true, product: "TokenOps", db: dbPath, traces: countTraces(db) }));
   app.get("/ready", async (_req, reply) => {
     const report = readinessReport({ db, dbPath, runtime, state });
@@ -143,6 +258,20 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     return report;
   });
   app.get("/v1/models", async () => openAIModelsList());
+  app.post("/plan", async (req, reply) => {
+    try {
+      return buildInferencePlanPreview(req.body);
+    } catch (e) {
+      return reply.code(422).send({ error: { message: (e as Error).message, type: "invalid_request_error" } });
+    }
+  });
+  app.post("/v1/tokenops/plan", async (req, reply) => {
+    try {
+      return buildInferencePlanPreview(req.body);
+    } catch (e) {
+      return reply.code(422).send({ error: { message: (e as Error).message, type: "invalid_request_error" } });
+    }
+  });
 
   app.post("/v1/chat/completions", async (req, reply) => {
     const wantsStream = Boolean((req.body as { stream?: boolean } | undefined)?.stream);
