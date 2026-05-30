@@ -543,6 +543,7 @@ function verificationStatus(area: string, passed: Record<string, boolean>): "pas
   if (area === "http-gateway-smoke" || area === "http-admission-control") return "manual";
   if (area === "semantic-cache-safety") return passed.semanticCacheAdversarialEvalPasses && passed.semanticThresholdSweepFindsSafeThreshold ? "pass" : "fail";
   if (area === "verifier-routing") return passed.verifierRoutingEvalPasses ? "pass" : "fail";
+  if (area === "provider-usage-export") return passed.providerAttemptUsageExportFeedsReconciliation ? "pass" : "fail";
   return "manual";
 }
 

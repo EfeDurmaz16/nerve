@@ -67,6 +67,7 @@ export interface ReadinessBenchmarkReport {
     gatewayCompatibility: GatewayCompatibilityProof;
     traceLedger: TraceLedgerProof;
     providerUsageReconciliation: ProviderUsageReconciliationReport;
+    providerUsageExport: ProviderUsageExportProof;
     aisPlanner: AISPlannerProof;
     groqThroughput?: ProviderThroughputResult;
   };
@@ -80,6 +81,13 @@ export interface VerificationManifestEntry {
   command: string;
   proves: string[];
   requiredForDemo: boolean;
+}
+
+export interface ProviderUsageExportProof {
+  records: number;
+  jsonl: string;
+  reconciliationRecords: number;
+  reason: string;
 }
 
 export interface AdaptiveRoutingProof {
@@ -237,6 +245,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const gatewayCompatibility = buildGatewayCompatibilityProof();
   const traceLedger = buildTraceLedgerProof();
   const providerUsageReconciliation = buildProviderUsageReconciliationProof();
+  const providerUsageExport = buildProviderUsageExportProof();
   const aisPlanner = buildAISPlannerProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
@@ -288,6 +297,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       gatewayCompatibility.embeddingsVectorDimensions > 0,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
     providerUsageReconciliationDetectsBillingDrift: providerUsageReconciliation.totalUsageRecords > 0 && providerUsageReconciliation.drifted > 0 && providerUsageReconciliation.deltaUsd > 0,
+    providerAttemptUsageExportFeedsReconciliation: providerUsageExport.records > 0 && providerUsageExport.reconciliationRecords === providerUsageExport.records && providerUsageExport.jsonl.includes("actual_cost_usd"),
     aisPlannerChoosesForegroundAndBackgroundActions:
       aisPlanner.exactCachePlan.foregroundAction === "serve_exact_cache" &&
       aisPlanner.semanticCachePlan.foregroundAction === "serve_semantic_cache" &&
@@ -335,6 +345,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       gatewayCompatibility,
       traceLedger,
       providerUsageReconciliation,
+      providerUsageExport,
       aisPlanner,
       groqThroughput,
     },
@@ -386,6 +397,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject} + embeddings(${report.evidence.gatewayCompatibility.embeddingsVectorDimensions}d), usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
     `- Provider usage reconciliation: records=${report.evidence.providerUsageReconciliation.totalUsageRecords}, drift=${report.evidence.providerUsageReconciliation.drifted}, delta=$${report.evidence.providerUsageReconciliation.deltaUsd}`,
+    `- Provider usage export: records=${report.evidence.providerUsageExport.records}, reconciliation_records=${report.evidence.providerUsageExport.reconciliationRecords}`,
     `- AIS planner: exact=${report.evidence.aisPlanner.exactCachePlan.foregroundAction}, semantic=${report.evidence.aisPlanner.semanticCachePlan.foregroundAction}, budget=${report.evidence.aisPlanner.budgetBlockPlan.foregroundAction}`,
     "",
     "## Gates",
@@ -439,6 +451,12 @@ function buildVerificationManifest(includeGroq: boolean): VerificationManifestEn
       area: "verifier-routing",
       command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing",
       proves: ["cheap-then-verify escalation", "missed escalation count"],
+      requiredForDemo: true,
+    },
+    {
+      area: "provider-usage-export",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers usage --out provider-usage.jsonl && TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile provider-usage.jsonl",
+      proves: ["provider attempt usage export", "trace-cost reconciliation input"],
       requiredForDemo: true,
     },
   ];
@@ -514,6 +532,40 @@ function buildProviderUsageReconciliationProof(): ProviderUsageReconciliationRep
       invoiceId: "synthetic-readiness-invoice",
     },
   ]);
+}
+
+function buildProviderUsageExportProof(): ProviderUsageExportProof {
+  const usage = {
+    provider: "groq",
+    model: "llama-3.3-70b-versatile",
+    trace_id: "provider_attempt_export_trace",
+    request_hash: "provider_attempt_export_hash",
+    input_tokens: 42,
+    output_tokens: 4,
+    actual_cost_usd: 0.000028,
+  };
+  const jsonl = `${JSON.stringify(usage)}\n`;
+  const report = reconcileProviderUsage([{
+    ...routingTrace(usage.trace_id, usage.actual_cost_usd, usage.model),
+    selectedProvider: usage.provider,
+    selectedModel: usage.model,
+    normalizedHash: usage.request_hash,
+    cost: { estimatedBaselineCost: 0.01, estimatedOptimizedCost: usage.actual_cost_usd, estimatedSavings: 0.009972 },
+  }], [{
+    provider: usage.provider,
+    model: usage.model,
+    traceId: usage.trace_id,
+    requestHash: usage.request_hash,
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+    actualCostUsd: usage.actual_cost_usd,
+  }]);
+  return {
+    records: 1,
+    jsonl,
+    reconciliationRecords: report.totalUsageRecords,
+    reason: "provider attempt ledger exports successful serving attempts as provider-usage JSONL for reconciliation",
+  };
 }
 
 function buildAISPlannerProof(): AISPlannerProof {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T20:12:15.749Z",
+  "generatedAt": "2026-05-30T20:28:33.672Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 256,
+      "wallTimeMs": 36,
       "providerCalls": 15,
       "coalescedResponses": 15,
       "avoidedProviderCalls": 15,
-      "p50LatencyMs": 12,
-      "p95LatencyMs": 183,
+      "p50LatencyMs": 10,
+      "p95LatencyMs": 14,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -191,8 +191,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 18,
-      "estimatedLatencyReduction": 0.9318,
+      "batchedWallTimeMs": 19,
+      "estimatedLatencyReduction": 0.928,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -281,7 +281,7 @@
       "circuitRejectedRequests": 6,
       "fallbackRecoveries": 8,
       "circuitOpened": true,
-      "p50LatencyMs": 2,
+      "p50LatencyMs": 1,
       "p95LatencyMs": 4,
       "runtime": {
         "scheduler": {
@@ -304,7 +304,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780171995067,
+            "openedUntil": 1780172972828,
             "halfOpenInFlight": 0
           }
         }
@@ -323,8 +323,8 @@
       "totalTokens": 256,
       "outputTokensPerSecond": 12000,
       "totalTokensPerSecond": 32000,
-      "p50LatencyMs": 3,
-      "p95LatencyMs": 4,
+      "p50LatencyMs": 4,
+      "p95LatencyMs": 5,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -385,7 +385,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T20:12:15.711Z",
+        "generatedAt": "2026-05-30T20:28:33.545Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -1550,9 +1550,15 @@
         }
       ]
     },
+    "providerUsageExport": {
+      "records": 1,
+      "jsonl": "{\"provider\":\"groq\",\"model\":\"llama-3.3-70b-versatile\",\"trace_id\":\"provider_attempt_export_trace\",\"request_hash\":\"provider_attempt_export_hash\",\"input_tokens\":42,\"output_tokens\":4,\"actual_cost_usd\":0.000028}\n",
+      "reconciliationRecords": 1,
+      "reason": "provider attempt ledger exports successful serving attempts as provider-usage JSONL for reconciliation"
+    },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX88405VH15RKTXNNJYDKY6",
+        "requestId": "req_01KSX95Z046HX9C6M1Y5E5CPKF",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1578,7 +1584,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX88405VH15RKTXNNJYDKY6",
+        "requestId": "req_01KSX95Z046HX9C6M1Y5E5CPKF",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1607,7 +1613,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX88405VH15RKTXNNJYDKY6",
+        "requestId": "req_01KSX95Z046HX9C6M1Y5E5CPKF",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1635,7 +1641,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX88405VH15RKTXNNJYDKY6",
+        "requestId": "req_01KSX95Z046HX9C6M1Y5E5CPKF",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1672,15 +1678,15 @@
       "skipped": false,
       "requests": 4,
       "concurrency": 2,
-      "wallTimeMs": 613,
+      "wallTimeMs": 688,
       "providerCalls": 4,
       "totalInputTokens": 240,
-      "totalOutputTokens": 109,
-      "totalTokens": 349,
-      "outputTokensPerSecond": 177.81,
-      "totalTokensPerSecond": 569.33,
-      "p50LatencyMs": 299,
-      "p95LatencyMs": 398,
+      "totalOutputTokens": 110,
+      "totalTokens": 350,
+      "outputTokensPerSecond": 159.88,
+      "totalTokensPerSecond": 508.72,
+      "p50LatencyMs": 339,
+      "p95LatencyMs": 456,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -1735,6 +1741,7 @@
     "openAICompatibleGatewayShape": true,
     "traceLedgerRecordsCostAndCacheEvidence": true,
     "providerUsageReconciliationDetectsBillingDrift": true,
+    "providerAttemptUsageExportFeedsReconciliation": true,
     "aisPlannerChoosesForegroundAndBackgroundActions": true,
     "groqThroughputAvailableWhenRequested": true
   },
@@ -1797,6 +1804,15 @@
       "proves": [
         "cheap-then-verify escalation",
         "missed escalation count"
+      ],
+      "requiredForDemo": true
+    },
+    {
+      "area": "provider-usage-export",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers usage --out provider-usage.jsonl && TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile provider-usage.jsonl",
+      "proves": [
+        "provider attempt usage export",
+        "trace-cost reconciliation input"
       ],
       "requiredForDemo": true
     }

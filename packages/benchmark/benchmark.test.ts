@@ -258,6 +258,9 @@ describe("TokenOps benchmark", () => {
     expect(report.passed.traceLedgerRecordsCostAndCacheEvidence).toBe(true);
     expect(report.evidence.providerUsageReconciliation.totalUsageRecords).toBeGreaterThan(0);
     expect(report.evidence.providerUsageReconciliation.drifted).toBeGreaterThan(0);
+    expect(report.evidence.providerUsageExport.records).toBeGreaterThan(0);
+    expect(report.evidence.providerUsageExport.jsonl).toContain("\"actual_cost_usd\"");
+    expect(report.passed.providerAttemptUsageExportFeedsReconciliation).toBe(true);
     expect(report.passed.providerUsageReconciliationDetectsBillingDrift).toBe(true);
     expect(report.evidence.aisPlanner.exactCachePlan.foregroundAction).toBe("serve_exact_cache");
     expect(report.evidence.aisPlanner.semanticCachePlan.foregroundAction).toBe("serve_semantic_cache");

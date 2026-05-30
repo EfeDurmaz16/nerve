@@ -309,6 +309,7 @@ describe("tokenops snapshot CLI", () => {
     expect(result.readyForLocalDemo).toBe(true);
     expect(result.failed).toEqual([]);
     expect(result.checks.find((entry) => entry.area === "replay-benchmark")?.status).toBe("pass");
+    expect(result.checks.find((entry) => entry.area === "provider-usage-export")?.status).toBe("pass");
     expect(result.checks.find((entry) => entry.area === "http-gateway-smoke")?.status).toBe("manual");
     expect(result.manual).toContain("http-gateway-smoke");
   });

@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T20:12:15.749Z
+Generated: 2026-05-30T20:28:33.672Z
 
 ## Summary
 
@@ -33,6 +33,7 @@ Generated: 2026-05-30T20:12:15.749Z
 - Gateway compatibility: chat.completion + response + embeddings(4d), usage=true, tokenops=true
 - Trace ledger: 2 traces, savings=$0.018
 - Provider usage reconciliation: records=1, drift=1, delta=$0.000972
+- Provider usage export: records=1, reconciliation_records=1
 - AIS planner: exact=serve_exact_cache, semantic=serve_semantic_cache, budget=block_budget
 
 ## Gates
@@ -61,6 +62,7 @@ Generated: 2026-05-30T20:12:15.749Z
 - openAICompatibleGatewayShape: true
 - traceLedgerRecordsCostAndCacheEvidence: true
 - providerUsageReconciliationDetectsBillingDrift: true
+- providerAttemptUsageExportFeedsReconciliation: true
 - aisPlannerChoosesForegroundAndBackgroundActions: true
 - groqThroughputAvailableWhenRequested: true
 
@@ -72,6 +74,7 @@ Generated: 2026-05-30T20:12:15.749Z
 - http-admission-control: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787 --admission` (priority admission, load shedding, foreground protection)
 - semantic-cache-safety: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5` (unsafe reuse block, safe reuse, threshold selection)
 - verifier-routing: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing` (cheap-then-verify escalation, missed escalation count)
+- provider-usage-export: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers usage --out provider-usage.jsonl && TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile provider-usage.jsonl` (provider attempt usage export, trace-cost reconciliation input)
 
 ## Gaps
 
