@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T18:30:40.006Z
+Generated: 2026-05-30T18:36:28.283Z
 
 ## Summary
 
@@ -27,6 +27,7 @@ Generated: 2026-05-30T18:30:40.006Z
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
 - Gateway compatibility: chat.completion + response + embeddings(4d), usage=true, tokenops=true
 - Trace ledger: 2 traces, savings=$0.018
+- Provider usage reconciliation: records=1, drift=1, delta=$0.000972
 - AIS planner: exact=serve_exact_cache, semantic=serve_semantic_cache, budget=block_budget
 
 ## Gates
@@ -49,6 +50,7 @@ Generated: 2026-05-30T18:30:40.006Z
 - cheaperAnalyzerFindsAvoidableCompute: true
 - openAICompatibleGatewayShape: true
 - traceLedgerRecordsCostAndCacheEvidence: true
+- providerUsageReconciliationDetectsBillingDrift: true
 - aisPlannerChoosesForegroundAndBackgroundActions: true
 - groqThroughputAvailableWhenRequested: true
 
@@ -56,5 +58,5 @@ Generated: 2026-05-30T18:30:40.006Z
 
 - Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.
 - Semantic cache correctness is heuristic and needs larger adversarial evals before production use.
-- Pricing remains configurable estimate data, not provider invoice reconciliation.
+- Provider usage reconciliation supports JSONL ingestion; direct provider invoice API ingestion is not implemented.
 - Hosted multi-tenant auth, deployment, dashboards, and enterprise controls are intentionally out of scope for this local prototype.

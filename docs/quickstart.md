@@ -89,6 +89,16 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-benchmarks 100 --keep-idempotency 1000
 ```
 
+Reconcile provider usage exports against the local trace ledger:
+
+```bash
+cat > ./provider-usage.jsonl <<'JSONL'
+{"provider":"groq","model":"llama-3.3-70b-versatile","trace_id":"tr_example","request_hash":"hash_example","input_tokens":42,"output_tokens":4,"actual_cost_usd":0.001}
+JSONL
+
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile ./provider-usage.jsonl
+```
+
 For local model infra, run an availability-aware Ollama throughput check:
 
 ```bash

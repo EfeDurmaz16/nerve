@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -63,6 +63,29 @@ describe("tokenops snapshot CLI", () => {
     expect(simulation.totalTraces).toBe(2);
     expect(simulation.blocked).toBe(1);
     expect(simulation.estimatedAvoidedCostUsd).toBeCloseTo(0.03);
+  });
+
+  it("reconciles provider usage JSONL against local TokenOps traces", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-reconcile-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const usagePath = join(dir, "usage.jsonl");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("tr_invoice", 0.000028));
+    writeFileSync(usagePath, `${JSON.stringify({
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      trace_id: "tr_invoice",
+      request_hash: "tr_invoice",
+      input_tokens: 42,
+      output_tokens: 4,
+      actual_cost_usd: 0.001,
+    })}\n`);
+
+    const report = JSON.parse(execTokenOps(["reconcile", usagePath], dbPath)) as { totalUsageRecords: number; drifted: number; deltaUsd: number };
+
+    expect(report.totalUsageRecords).toBe(1);
+    expect(report.drifted).toBe(1);
+    expect(report.deltaUsd).toBeCloseTo(0.000972);
   });
 });
 

@@ -26,7 +26,7 @@ import {
   runSemanticCacheSafetyBenchmark,
 } from "@tokenops/benchmark";
 import type { BudgetPolicy, ModelResponse, NormalizedRequest } from "@tokenops/core";
-import { providerHealthReport, SqliteTraceStore } from "@tokenops/ledger";
+import { providerHealthReport, reconcileProviderUsage, SqliteTraceStore, type ProviderUsageRecord } from "@tokenops/ledger";
 import { simulateBudgetPolicy } from "@tokenops/policy";
 import type { ModelProvider } from "@tokenops/providers";
 import { learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
@@ -51,6 +51,7 @@ usage:
   tokenops replay --all                  run all benchmark datasets
   tokenops export <file>                 export local TokenOps traces and benchmark results
   tokenops import <file>                 import a TokenOps snapshot
+  tokenops reconcile <usage.jsonl>       reconcile provider usage against local traces
   tokenops prune                         prune local TokenOps evidence by retention counts
   tokenops load                          run local concurrent inference runtime benchmark
   tokenops batch                         run local micro-batching throughput benchmark
@@ -113,6 +114,7 @@ async function main() {
     if (cmd === "replay") return cmdTokenOpsReplay(argv.slice(1));
     if (cmd === "export") return cmdTokenOpsExport(argv.slice(1));
     if (cmd === "import") return cmdTokenOpsImport(argv.slice(1));
+    if (cmd === "reconcile") return cmdTokenOpsReconcile(argv.slice(1));
     if (cmd === "prune") return cmdTokenOpsPrune(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
@@ -223,6 +225,17 @@ function cmdTokenOpsImport(args: string[]) {
   const snapshot = JSON.parse(readFileSync(resolve(file), "utf8")) as ReturnType<typeof exportTokenOpsSnapshot>;
   const imported = importTokenOpsSnapshot(db, snapshot);
   console.log(kleur.green(`✓ imported ${imported.traces} traces, ${imported.benchmark_results} benchmark results, and ${imported.provider_attempts} provider attempts from ${resolve(file)}`));
+}
+
+function cmdTokenOpsReconcile(args: string[]) {
+  const file = args[0];
+  if (!file) return die("usage: tokenops reconcile <provider-usage.jsonl>");
+  const db = openDb(DB_PATH);
+  const store = new SqliteTraceStore(db);
+  const report = reconcileProviderUsage(store.list(Number(getOpt(args, "--trace-limit") ?? 100_000)), readProviderUsageJsonl(file), {
+    toleranceUsd: Number(getOpt(args, "--tolerance-usd") ?? 0.000001),
+  });
+  console.log(JSON.stringify(report, null, 2));
 }
 
 function cmdTokenOpsPrune(args: string[]) {
@@ -619,6 +632,48 @@ function boolArg(args: string[], name: string, fallback: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
+function readProviderUsageJsonl(path: string): ProviderUsageRecord[] {
+  return readFileSync(resolve(path), "utf8")
+    .split(/\r?\n/)
+    .filter((line) => line.trim().length > 0)
+    .map((line, index) => providerUsageRecordFromJson(JSON.parse(line), index + 1));
+}
+
+function providerUsageRecordFromJson(value: unknown, line: number): ProviderUsageRecord {
+  if (!isRecord(value)) die(`invalid provider usage record on line ${line}`);
+  const provider = stringField(value, "provider", line);
+  const model = stringField(value, "model", line);
+  return {
+    provider,
+    model,
+    traceId: optionalStringField(value, "traceId") ?? optionalStringField(value, "trace_id"),
+    requestHash: optionalStringField(value, "requestHash") ?? optionalStringField(value, "request_hash"),
+    inputTokens: numberField(value, "inputTokens", line, "input_tokens"),
+    outputTokens: numberField(value, "outputTokens", line, "output_tokens"),
+    actualCostUsd: numberField(value, "actualCostUsd", line, "actual_cost_usd"),
+    invoiceId: optionalStringField(value, "invoiceId") ?? optionalStringField(value, "invoice_id"),
+    timestamp: optionalStringField(value, "timestamp"),
+  };
+}
+
+function stringField(value: Record<string, unknown>, key: string, line: number): string {
+  const raw = value[key];
+  if (typeof raw !== "string" || raw.length === 0) die(`provider usage line ${line} missing string ${key}`);
+  return raw;
+}
+
+function optionalStringField(value: Record<string, unknown>, key: string): string | undefined {
+  const raw = value[key];
+  return typeof raw === "string" && raw.length > 0 ? raw : undefined;
+}
+
+function numberField(value: Record<string, unknown>, key: string, line: number, snakeKey?: string): number {
+  const raw = value[key] ?? (snakeKey ? value[snakeKey] : undefined);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) die(`provider usage line ${line} missing number ${snakeKey ?? key}`);
+  return parsed;
+}
+
 function expandFiles(args: string[]): string[] {
   const out: string[] = [];
   for (const a of args) {
@@ -651,6 +706,10 @@ function loadDotEnv(path: string): void {
     if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) value = value.slice(1, -1);
     process.env[key] = value;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readVerifierCases(path: string): VerifierEvalCase[] {

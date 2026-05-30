@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestTrace } from "@tokenops/core";
-import { analyzeTraces, gatewayStats, providerHealthReport, reconcileModelResponseCost, SqliteTraceStore, TraceStore } from "./src/index.js";
+import { analyzeTraces, gatewayStats, providerHealthReport, reconcileModelResponseCost, reconcileProviderUsage, SqliteTraceStore, TraceStore } from "./src/index.js";
 import { openDb } from "@nerve/store";
 
 const trace = (over: Partial<RequestTrace> = {}): RequestTrace => ({
@@ -76,6 +76,26 @@ describe("TokenOps ledger", () => {
     });
     expect(result.status).toBe("matched");
     expect(result.promptTokens).toBe(42);
+  });
+
+  it("reconciles provider usage records against stored request traces", () => {
+    const report = reconcileProviderUsage([
+      trace({ id: "tr_match", normalizedHash: "hash_match", selectedProvider: "groq", selectedModel: "llama-3.3-70b-versatile", cost: { estimatedBaselineCost: 1, estimatedOptimizedCost: 0.000028, estimatedSavings: 0.999972 } }),
+      trace({ id: "tr_drift", normalizedHash: "hash_drift", selectedProvider: "groq", selectedModel: "llama-3.3-70b-versatile", cost: { estimatedBaselineCost: 1, estimatedOptimizedCost: 0.000028, estimatedSavings: 0.999972 } }),
+    ], [
+      { provider: "groq", model: "llama-3.3-70b-versatile", traceId: "tr_match", requestHash: "hash_match", inputTokens: 42, outputTokens: 4, actualCostUsd: 0.000028 },
+      { provider: "groq", model: "llama-3.3-70b-versatile", traceId: "tr_drift", requestHash: "hash_drift", inputTokens: 42, outputTokens: 4, actualCostUsd: 0.001 },
+      { provider: "groq", model: "llama-3.3-70b-versatile", traceId: "tr_missing", requestHash: "hash_missing", inputTokens: 1, outputTokens: 1, actualCostUsd: 0.1 },
+    ], { toleranceUsd: 0.000001 });
+
+    expect(report.totalUsageRecords).toBe(3);
+    expect(report.matched).toBe(1);
+    expect(report.drifted).toBe(1);
+    expect(report.missingTrace).toBe(1);
+    expect(report.actualCostUsd).toBeCloseTo(0.101028);
+    expect(report.estimatedTraceCostUsd).toBeCloseTo(0.000056);
+    expect(report.deltaUsd).toBeCloseTo(0.100972);
+    expect(report.records.find((record) => record.traceId === "tr_missing")?.status).toBe("missing_trace");
   });
 
   it("scores provider health from traces", () => {

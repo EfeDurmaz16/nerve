@@ -213,6 +213,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.traceLedger.estimatedSavings).toBeGreaterThan(0);
     expect(report.evidence.traceLedger.exactCacheHitRate).toBeGreaterThan(0);
     expect(report.passed.traceLedgerRecordsCostAndCacheEvidence).toBe(true);
+    expect(report.evidence.providerUsageReconciliation.totalUsageRecords).toBeGreaterThan(0);
+    expect(report.evidence.providerUsageReconciliation.drifted).toBeGreaterThan(0);
+    expect(report.passed.providerUsageReconciliationDetectsBillingDrift).toBe(true);
     expect(report.evidence.aisPlanner.exactCachePlan.foregroundAction).toBe("serve_exact_cache");
     expect(report.evidence.aisPlanner.semanticCachePlan.foregroundAction).toBe("serve_semantic_cache");
     expect(report.evidence.aisPlanner.semanticCachePlan.backgroundTasks).toContain("verify_cached_answer");

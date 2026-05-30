@@ -51,5 +51,5 @@ A local demo is acceptable when:
 - Hosted dashboard.
 - Multi-tenant auth.
 - Distributed queue/circuit state.
-- Provider invoice reconciliation.
+- Direct provider invoice API ingestion.
 - Production-grade semantic-cache correctness guarantees.

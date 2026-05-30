@@ -3,7 +3,7 @@ import type { BenchmarkResult, ComputePlan, ModelResponse, NormalizedRequest } f
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { toOpenAIChatCompletion, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
-import { analyzeTraces, gatewayStats, TraceStore, type CheaperInsight } from "@tokenops/ledger";
+import { analyzeTraces, gatewayStats, reconcileProviderUsage, TraceStore, type CheaperInsight, type ProviderUsageReconciliationReport } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
@@ -58,6 +58,7 @@ export interface ReadinessBenchmarkReport {
     cheaperAnalyzer: CheaperAnalyzerProof;
     gatewayCompatibility: GatewayCompatibilityProof;
     traceLedger: TraceLedgerProof;
+    providerUsageReconciliation: ProviderUsageReconciliationReport;
     aisPlanner: AISPlannerProof;
     groqThroughput?: ProviderThroughputResult;
   };
@@ -202,6 +203,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
   const gatewayCompatibility = buildGatewayCompatibilityProof();
   const traceLedger = buildTraceLedgerProof();
+  const providerUsageReconciliation = buildProviderUsageReconciliationProof();
   const aisPlanner = buildAISPlannerProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
@@ -240,6 +242,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       gatewayCompatibility.embeddingsCount > 0 &&
       gatewayCompatibility.embeddingsVectorDimensions > 0,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
+    providerUsageReconciliationDetectsBillingDrift: providerUsageReconciliation.totalUsageRecords > 0 && providerUsageReconciliation.drifted > 0 && providerUsageReconciliation.deltaUsd > 0,
     aisPlannerChoosesForegroundAndBackgroundActions:
       aisPlanner.exactCachePlan.foregroundAction === "serve_exact_cache" &&
       aisPlanner.semanticCachePlan.foregroundAction === "serve_semantic_cache" &&
@@ -281,6 +284,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       cheaperAnalyzer,
       gatewayCompatibility,
       traceLedger,
+      providerUsageReconciliation,
       aisPlanner,
       groqThroughput,
     },
@@ -288,7 +292,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     gaps: [
       "Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.",
       "Semantic cache correctness is heuristic and needs larger adversarial evals before production use.",
-      "Pricing remains configurable estimate data, not provider invoice reconciliation.",
+      "Provider usage reconciliation supports JSONL ingestion; direct provider invoice API ingestion is not implemented.",
       "Hosted multi-tenant auth, deployment, dashboards, and enterprise controls are intentionally out of scope for this local prototype.",
     ],
   };
@@ -325,6 +329,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject} + embeddings(${report.evidence.gatewayCompatibility.embeddingsVectorDimensions}d), usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
+    `- Provider usage reconciliation: records=${report.evidence.providerUsageReconciliation.totalUsageRecords}, drift=${report.evidence.providerUsageReconciliation.drifted}, delta=$${report.evidence.providerUsageReconciliation.deltaUsd}`,
     `- AIS planner: exact=${report.evidence.aisPlanner.exactCachePlan.foregroundAction}, semantic=${report.evidence.aisPlanner.semanticCachePlan.foregroundAction}, budget=${report.evidence.aisPlanner.budgetBlockPlan.foregroundAction}`,
     "",
     "## Gates",
@@ -358,6 +363,28 @@ function buildTraceLedgerProof(): TraceLedgerProof {
     estimatedSavings: roundMoney(stats.cost.estimatedSavings),
     reason: "trace ledger stores request decisions and cost ledger summarizes cache/routing savings",
   };
+}
+
+function buildProviderUsageReconciliationProof(): ProviderUsageReconciliationReport {
+  const trace = routingTrace("invoice_reconcile_trace", 0.000028, "llama-3.3-70b-versatile");
+  return reconcileProviderUsage([{
+    ...trace,
+    selectedProvider: "groq",
+    selectedModel: "llama-3.3-70b-versatile",
+    normalizedHash: "invoice_reconcile_hash",
+    cost: { estimatedBaselineCost: 0.01, estimatedOptimizedCost: 0.000028, estimatedSavings: 0.009972 },
+  }], [
+    {
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      traceId: "invoice_reconcile_trace",
+      requestHash: "invoice_reconcile_hash",
+      inputTokens: 42,
+      outputTokens: 4,
+      actualCostUsd: 0.001,
+      invoiceId: "synthetic-readiness-invoice",
+    },
+  ]);
 }
 
 function buildAISPlannerProof(): AISPlannerProof {

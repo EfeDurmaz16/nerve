@@ -104,6 +104,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay benchmark/datasets/docs-qa.jsonl --persist
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile ./provider-usage.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-benchmarks 100 --keep-idempotency 1000
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
@@ -137,6 +138,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops replay <dataset> --persist`
 - `tokenops export <file>`
 - `tokenops import <file>`
+- `tokenops reconcile <provider-usage.jsonl>`
 - `tokenops prune --keep-traces <n> --keep-benchmarks <n> --keep-idempotency <n>`
 - `tokenops load`
 - `tokenops batch`
@@ -314,6 +316,7 @@ Production-like:
 - SQLite-backed provider attempt ledger for fallback/retry debugging
 - SQLite-backed idempotency records for retry-safe non-streaming chat completions
 - snapshot import/export for TokenOps traces and benchmark results
+- provider usage JSONL reconciliation against the trace ledger
 - retention pruning for local TokenOps traces, benchmark results, and idempotency records
 - benchmark datasets and replay runner
 - mock provider
