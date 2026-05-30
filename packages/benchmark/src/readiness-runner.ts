@@ -2,7 +2,7 @@ import { planCompute } from "@tokenops/ais";
 import type { BenchmarkResult, ComputePlan, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
-import { toOpenAIChatCompletion, toOpenAIResponse } from "@tokenops/gateway";
+import { toOpenAIChatCompletion, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
 import { analyzeTraces, gatewayStats, TraceStore, type CheaperInsight } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
@@ -130,6 +130,9 @@ export interface GatewayCompatibilityProof {
   responsesObject: string;
   responsesHasOutputText: boolean;
   responsesHasOutput: boolean;
+  embeddingsObject: string;
+  embeddingsCount: number;
+  embeddingsVectorDimensions: number;
   promptTokens: number;
   completionTokens: number;
   reason: string;
@@ -232,7 +235,10 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       gatewayCompatibility.hasTokenOpsMetadata &&
       gatewayCompatibility.responsesObject === "response" &&
       gatewayCompatibility.responsesHasOutputText &&
-      gatewayCompatibility.responsesHasOutput,
+      gatewayCompatibility.responsesHasOutput &&
+      gatewayCompatibility.embeddingsObject === "list" &&
+      gatewayCompatibility.embeddingsCount > 0 &&
+      gatewayCompatibility.embeddingsVectorDimensions > 0,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
     aisPlannerChoosesForegroundAndBackgroundActions:
       aisPlanner.exactCachePlan.foregroundAction === "serve_exact_cache" &&
@@ -317,7 +323,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Semantic safety eval: ${report.evidence.semanticSafety.totalCases} cases, unsafe hits=${report.evidence.semanticSafety.falsePositiveUnsafeHits}, safe misses=${report.evidence.semanticSafety.falseNegativeSafeMisses}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
-    `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
+    `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject} + embeddings(${report.evidence.gatewayCompatibility.embeddingsVectorDimensions}d), usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
     `- AIS planner: exact=${report.evidence.aisPlanner.exactCachePlan.foregroundAction}, semantic=${report.evidence.aisPlanner.semanticCachePlan.foregroundAction}, budget=${report.evidence.aisPlanner.budgetBlockPlan.foregroundAction}`,
     "",
@@ -476,6 +482,20 @@ function buildGatewayCompatibilityProof(): GatewayCompatibilityProof {
     output_text?: string;
     output?: unknown[];
   };
+  const embeddings = toOpenAIEmbeddingResponse({
+    model: "text-embedding-3-small",
+    input: ["gateway compatibility proof", "adaptive inference cache proof"],
+    embeddings: [
+      [1, 0, 0, 0],
+      [0, 1, 0, 0],
+    ],
+    promptTokens: 12,
+    dimensions: 4,
+    id: "emb_readiness",
+  }) as {
+    object: string;
+    data?: Array<{ embedding?: unknown[] }>;
+  };
   return {
     object: response.object,
     model: response.model,
@@ -485,9 +505,12 @@ function buildGatewayCompatibilityProof(): GatewayCompatibilityProof {
     responsesObject: responses.object,
     responsesHasOutputText: typeof responses.output_text === "string" && responses.output_text.length > 0,
     responsesHasOutput: Array.isArray(responses.output) && responses.output.length > 0,
+    embeddingsObject: embeddings.object,
+    embeddingsCount: embeddings.data?.length ?? 0,
+    embeddingsVectorDimensions: embeddings.data?.[0]?.embedding?.length ?? 0,
     promptTokens: response.usage?.prompt_tokens ?? 0,
     completionTokens: response.usage?.completion_tokens ?? 0,
-    reason: "gateway adapter returns OpenAI-compatible chat.completion and response shapes with usage and TokenOps metadata",
+    reason: "gateway adapter returns OpenAI-compatible chat.completion, response, and embeddings shapes with usage and TokenOps metadata",
   };
 }
 

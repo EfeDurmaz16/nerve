@@ -114,6 +114,28 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("serves deterministic OpenAI-compatible embeddings", async () => {
+    const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+    const payload = {
+      model: "text-embedding-3-small",
+      input: ["TokenOps cache policy", "Adaptive inference control plane"],
+      dimensions: 32,
+    };
+    const first = await app.inject({ method: "POST", url: "/v1/embeddings", payload });
+    const second = await app.inject({ method: "POST", url: "/v1/embeddings", payload });
+    expect(first.statusCode).toBe(200);
+    const body = first.json();
+    expect(body.object).toBe("list");
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0].object).toBe("embedding");
+    expect(body.data[0].embedding).toHaveLength(32);
+    expect(body.usage.prompt_tokens).toBeGreaterThan(0);
+    expect(body.tokenops.provider).toBe("local");
+    expect(body.tokenops.deterministic).toBe(true);
+    expect(second.json().data[0].embedding).toEqual(body.data[0].embedding);
+    await app.close();
+  });
+
   it("returns a clear provider error when Groq key is missing", async () => {
     const old = process.env.TOKENOPS_PROVIDER;
     const oldGroqKey = process.env.GROQ_API_KEY;

@@ -56,6 +56,9 @@ curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
 curl -sS -X POST http://127.0.0.1:8787/v1/responses \
   -H 'content-type: application/json' \
   -d '{"model":"llama-3.3-70b-versatile","input":"docs quickstart"}'
+curl -sS -X POST http://127.0.0.1:8787/v1/embeddings \
+  -H 'content-type: application/json' \
+  -d '{"model":"text-embedding-3-small","input":["TokenOps cache policy","Adaptive inference control plane"],"dimensions":32}'
 ```
 
 Run benchmark:

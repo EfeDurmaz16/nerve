@@ -6,6 +6,8 @@ This roadmap separates what the current workspace can reach now from what should
 
 - OpenAI-compatible `/v1/chat/completions`
 - non-streaming and basic SSE streaming responses
+- OpenAI-compatible `/v1/responses`
+- deterministic local `/v1/embeddings` for compatibility and cache/profiler experiments
 - mock provider
 - exact cache with user/agent isolation
 - semantic cache guarded by cacheability classifier
@@ -55,8 +57,8 @@ The 1-month target is a credible local/self-hosted alpha that can sit in front o
 ### Serving
 
 - Support OpenAI-style streaming with token-level chunks when real providers support it.
-- Add `/v1/responses` compatibility if practical.
-- Add `/v1/embeddings` compatibility for cache/profiler experiments.
+- Harden `/v1/responses` beyond minimal non-streaming compatibility.
+- Add provider-backed embeddings for production semantic-cache experiments.
 - Add idempotency keys for gateway calls.
 - Add request timeout and retry policy.
 

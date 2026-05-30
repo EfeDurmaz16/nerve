@@ -24,9 +24,9 @@ import { mineAll } from "@nerve/miner";
 import { generateEvals, learn } from "@nerve/learner";
 import { runVerifiers } from "@nerve/verifiers";
 import { replay } from "@nerve/replay";
-import { SemanticCache, SqliteContextBlockCache, SqliteExactCache, SqliteSemanticCache, SqliteToolResultCache, simulatePrefixCache } from "@tokenops/cache";
-import { estimateCost, estimateInputTokens, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
-import { normalizeOpenAIChatRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIResponse } from "@tokenops/gateway";
+import { HashedEmbeddingIndex, SemanticCache, SqliteContextBlockCache, SqliteExactCache, SqliteSemanticCache, SqliteToolResultCache, simulatePrefixCache } from "@tokenops/cache";
+import { estimateCost, estimateInputTokens, estimateTextTokens, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
+import { normalizeOpenAIChatRequest, normalizeOpenAIEmbeddingsRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
 import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota } from "@tokenops/policy";
@@ -384,6 +384,27 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       ...toOpenAIResponse(normalized, modelResponse, `resp_${ulid()}`),
       tokenops: chatBody.tokenops,
     };
+  });
+
+  app.post("/v1/embeddings", async (req, reply) => {
+    let embeddingRequest: ReturnType<typeof normalizeOpenAIEmbeddingsRequest>;
+    try {
+      embeddingRequest = normalizeOpenAIEmbeddingsRequest(req.body);
+    } catch (e) {
+      return reply.code(422).send({ error: { message: (e as Error).message, type: "invalid_request_error" } });
+    }
+
+    const index = new HashedEmbeddingIndex(embeddingRequest.dimensions);
+    const embeddings = embeddingRequest.input.map((input) => index.embed(input));
+    const promptTokens = embeddingRequest.input.reduce((total, input) => total + estimateTextTokens(input), 0);
+    return toOpenAIEmbeddingResponse({
+      id: `emb_${ulid()}`,
+      model: embeddingRequest.model,
+      input: embeddingRequest.input,
+      embeddings,
+      promptTokens,
+      dimensions: embeddingRequest.dimensions,
+    });
   });
 
   app.get("/stats", async () => {

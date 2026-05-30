@@ -94,3 +94,34 @@ export function toOpenAIResponse(request: NormalizedRequest, response: ModelResp
     },
   };
 }
+
+export function toOpenAIEmbeddingResponse(opts: {
+  model: string;
+  input: string[];
+  embeddings: number[][];
+  promptTokens: number;
+  dimensions: number;
+  id?: string;
+}) {
+  return {
+    object: "list",
+    data: opts.embeddings.map((embedding, index) => ({
+      object: "embedding",
+      index,
+      embedding,
+    })),
+    model: opts.model,
+    usage: {
+      prompt_tokens: opts.promptTokens,
+      total_tokens: opts.promptTokens,
+    },
+    tokenops: {
+      id: opts.id,
+      provider: "local",
+      model: opts.model,
+      dimensions: opts.dimensions,
+      input_count: opts.input.length,
+      deterministic: true,
+    },
+  };
+}

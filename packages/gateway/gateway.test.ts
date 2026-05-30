@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOpenAIChatRequest, normalizeOpenAIResponsesRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIResponse } from "./src/index.js";
+import {
+  normalizeOpenAIChatRequest,
+  normalizeOpenAIEmbeddingsRequest,
+  normalizeOpenAIResponsesRequest,
+  toOpenAIChatCompletion,
+  toOpenAIChatCompletionStream,
+  toOpenAIEmbeddingResponse,
+  toOpenAIResponse,
+} from "./src/index.js";
 
 describe("TokenOps gateway", () => {
   it("normalizes OpenAI chat requests", () => {
@@ -77,5 +85,32 @@ describe("TokenOps gateway", () => {
     expect(out.output_text).toBe("hi");
     expect(out.output[0]!.content[0]!.text).toBe("hi");
     expect(out.usage.total_tokens).toBe(12);
+  });
+
+  it("normalizes OpenAI embeddings requests", () => {
+    const req = normalizeOpenAIEmbeddingsRequest({
+      model: "text-embedding-3-small",
+      input: ["TokenOps cache policy", "Adaptive inference control plane"],
+      dimensions: 128,
+    });
+    expect(req.model).toBe("text-embedding-3-small");
+    expect(req.input).toEqual(["TokenOps cache policy", "Adaptive inference control plane"]);
+    expect(req.dimensions).toBe(128);
+  });
+
+  it("returns OpenAI-compatible embeddings shape", () => {
+    const out = toOpenAIEmbeddingResponse({
+      model: "text-embedding-3-small",
+      input: ["TokenOps cache policy"],
+      embeddings: [[0.1, 0.2, 0.3]],
+      promptTokens: 6,
+      dimensions: 3,
+    });
+    expect(out.object).toBe("list");
+    expect(out.data[0]!.object).toBe("embedding");
+    expect(out.data[0]!.index).toBe(0);
+    expect(out.data[0]!.embedding).toEqual([0.1, 0.2, 0.3]);
+    expect(out.usage.total_tokens).toBe(6);
+    expect(out.tokenops.deterministic).toBe(true);
   });
 });

@@ -67,3 +67,29 @@ export function responsesRequestToChatRequest(body: unknown): OpenAIChatCompleti
 export function normalizeOpenAIResponsesRequest(body: unknown): NormalizedRequest {
   return normalizeChatCompletionRequest(responsesRequestToChatRequest(body));
 }
+
+export const OpenAIEmbeddingsRequestSchema = z.object({
+  model: z.string().min(1),
+  input: z.union([z.string(), z.array(z.string()).min(1)]),
+  encoding_format: z.enum(["float"]).optional(),
+  dimensions: z.number().int().positive().max(4096).optional(),
+  user: z.string().optional(),
+}).passthrough();
+
+export type NormalizedOpenAIEmbeddingsRequest = {
+  model: string;
+  input: string[];
+  dimensions: number;
+  user?: string;
+};
+
+export function normalizeOpenAIEmbeddingsRequest(body: unknown): NormalizedOpenAIEmbeddingsRequest {
+  const parsed = OpenAIEmbeddingsRequestSchema.safeParse(body);
+  if (!parsed.success) throw new Error(`invalid OpenAI embeddings request: ${parsed.error.message}`);
+  return {
+    model: parsed.data.model,
+    input: Array.isArray(parsed.data.input) ? parsed.data.input : [parsed.data.input],
+    dimensions: parsed.data.dimensions ?? 256,
+    user: parsed.data.user,
+  };
+}

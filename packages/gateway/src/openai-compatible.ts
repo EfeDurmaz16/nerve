@@ -1,2 +1,11 @@
-export { OpenAIChatCompletionRequestSchema, OpenAIResponsesRequestSchema, normalizeOpenAIChatRequest, normalizeOpenAIResponsesRequest, responsesRequestToChatRequest } from "./request-normalizer.js";
-export { toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIResponse } from "./response-adapter.js";
+export {
+  OpenAIChatCompletionRequestSchema,
+  OpenAIEmbeddingsRequestSchema,
+  OpenAIResponsesRequestSchema,
+  normalizeOpenAIChatRequest,
+  normalizeOpenAIEmbeddingsRequest,
+  normalizeOpenAIResponsesRequest,
+  responsesRequestToChatRequest,
+  type NormalizedOpenAIEmbeddingsRequest,
+} from "./request-normalizer.js";
+export { toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIEmbeddingResponse, toOpenAIResponse } from "./response-adapter.js";

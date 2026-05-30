@@ -49,12 +49,16 @@ curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
 curl -sS -X POST http://127.0.0.1:8787/v1/responses \
   -H 'content-type: application/json' \
   -d '{"model":"llama-3.3-70b-versatile","input":"docs quickstart"}'
+curl -sS -X POST http://127.0.0.1:8787/v1/embeddings \
+  -H 'content-type: application/json' \
+  -d '{"model":"text-embedding-3-small","input":["TokenOps cache policy","Adaptive inference control plane"],"dimensions":32}'
 ```
 
 Implemented endpoints:
 
 - `POST /v1/chat/completions`
 - `POST /v1/responses`
+- `POST /v1/embeddings`
 - `GET /health`
 - `GET /stats`
 - `GET /traces`
@@ -298,6 +302,7 @@ Production-like:
 - mock provider
 - Groq provider over OpenAI-compatible HTTP
 - OpenAI provider over OpenAI-compatible HTTP
+- deterministic local `/v1/embeddings` compatibility for RAG and semantic-cache experiments
 - Ollama local provider over `/api/chat`
 - provider fallback chains such as `TOKENOPS_PROVIDER=groq,ollama,mock`
 - trace-derived adaptive routing policy endpoint and optional runtime application
@@ -318,6 +323,7 @@ Prototype/mock:
 
 - Anthropic/Gemini/vLLM adapters are scaffolded
 - semantic similarity is lexical
+- embeddings are deterministic local hashed vectors, not provider-grade embedding models
 - request traces and benchmark results are SQLite-backed
 - pricing is configurable estimate data, not billing truth
 - verifier gate supports heuristic and model-backed judging, but production quality still depends on eval coverage
@@ -327,9 +333,9 @@ Prototype/mock:
 
 Roadmap:
 
-- streaming support
-- real OpenAI/Anthropic/Gemini/Ollama/vLLM adapters
-- embedding-backed semantic cache
+- token-level streaming support with real provider deltas
+- fuller Anthropic/Gemini/vLLM adapters
+- provider-backed or production embedding models for semantic cache
 - redaction policy hooks
 - larger eval-backed cache safety corpus
 - OTel/Langfuse export
