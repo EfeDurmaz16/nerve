@@ -172,6 +172,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops routing policy`
 - `tokenops routing slo`
 - `tokenops routing slo-benchmark`
+- `tokenops routing slo-impact --candidates groq,mock --max-p95-ms 1000`
 - `tokenops routing arbitrage --provider <name> --candidates groq,openai,mock`
 - `tokenops providers health`
 - `tokenops providers attempts`
@@ -332,9 +333,10 @@ Provider SLO routing benchmark:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-impact --candidates groq,mock --max-p95-ms 1000
 ```
 
-This generates synthetic provider traces where Groq violates the local SLO window and mock remains eligible, then proves the router reroutes from `groq` to `mock`.
+The benchmark generates synthetic provider traces where Groq violates the local SLO window and mock remains eligible, then proves the router reroutes from `groq` to `mock`. The impact command analyzes local traces and reports unhealthy providers, eligible fallbacks, impacted requests, and impacted optimized cost.
 
 Local setup doctor:
 

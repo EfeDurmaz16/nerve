@@ -75,6 +75,7 @@ usage:
   tokenops routing policy                learn and print routing policy from local traces
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
+  tokenops routing slo-impact            estimate impact of unhealthy providers in local traces
   tokenops routing arbitrage             choose cheapest healthy provider from local traces
   tokenops providers health              score provider health from local traces
   tokenops providers attempts            list provider call attempts from local DB
@@ -145,6 +146,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "policy") return cmdTokenOpsRoutingPolicy();
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
+    if (cmd === "routing" && argv[1] === "slo-impact") return cmdTokenOpsRoutingSloImpact(argv.slice(2));
     if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth(argv.slice(2));
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
@@ -579,6 +581,42 @@ function cmdTokenOpsRoutingSloBenchmark() {
   const result = runProviderSloBenchmark();
   console.log(JSON.stringify(result, null, 2));
   if (!result.passed) process.exit(1);
+}
+
+function cmdTokenOpsRoutingSloImpact(args: string[]) {
+  const db = openDb(DB_PATH);
+  const store = new SqliteTraceStore(db);
+  const windowSize = Number(getOpt(args, "--window-size") ?? process.env.TOKENOPS_SLO_WINDOW_SIZE ?? 100);
+  const traces = store.list(windowSize);
+  const policy = learnSloRoutingPolicy(traces, {
+    windowSize,
+    maxErrorRate: Number(getOpt(args, "--max-error-rate") ?? process.env.TOKENOPS_SLO_MAX_ERROR_RATE ?? 0.1),
+    maxP95LatencyMs: Number(getOpt(args, "--max-p95-ms") ?? process.env.TOKENOPS_SLO_MAX_P95_LATENCY_MS ?? 10_000),
+    maxAverageCostUsd: Number(getOpt(args, "--max-average-cost-usd") ?? process.env.TOKENOPS_SLO_MAX_AVERAGE_COST_USD ?? Number.MAX_SAFE_INTEGER),
+  });
+  const candidates = (getOpt(args, "--candidates") ?? process.env.TOKENOPS_PROVIDER_CANDIDATES ?? Object.keys(policy.providers).join(","))
+    .split(",")
+    .map((provider) => provider.trim())
+    .filter(Boolean);
+  const unhealthyProviders = candidates.filter((provider) => policy.providers[provider]?.eligible === false);
+  const eligibleFallbacks = candidates.filter((provider) => policy.providers[provider]?.eligible === true);
+  const impacted = traces.filter((trace) => unhealthyProviders.includes(trace.selectedProvider || trace.routing.selectedProvider));
+  const fallbackProvider = eligibleFallbacks[0];
+  console.log(JSON.stringify({
+    windowSize,
+    candidates,
+    unhealthyProviders,
+    eligibleFallbacks,
+    impactedRequests: impacted.length,
+    impactedOptimizedCostUsd: round6(impacted.reduce((sum, trace) => sum + trace.cost.estimatedOptimizedCost, 0)),
+    policy,
+    recommendations: unhealthyProviders.map((provider) => ({
+      provider,
+      action: fallbackProvider ? "reroute" : "warn",
+      fallbackProvider,
+      reason: policy.providers[provider]?.reason ?? "provider has no SLO samples",
+    })),
+  }, null, 2));
 }
 
 function cmdTokenOpsRoutingArbitrage(args: string[]) {
@@ -1086,6 +1124,10 @@ async function runGatewayAdmissionSmoke(baseUrl: string, model: string): Promise
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
+}
+
+function round6(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 function readVerifierCases(path: string): VerifierEvalCase[] {

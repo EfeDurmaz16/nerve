@@ -360,6 +360,36 @@ describe("tokenops snapshot CLI", () => {
     expect(result.providers.groq?.slo?.reason).toContain("violates SLO");
     expect(result.providers.mock?.slo?.eligible).toBe(true);
   });
+
+  it("prints SLO impact analysis from local traces", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-slo-impact-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("groq_error", 0.01, "groq", 20_000, false, "provider_error"));
+    store.insert(trace("groq_slow", 0.01, "groq", 15_000));
+    store.insert(trace("mock_ok", 0, "mock", 30));
+
+    const result = JSON.parse(execTokenOps([
+      "routing",
+      "slo-impact",
+      "--max-p95-ms",
+      "1000",
+      "--candidates",
+      "groq,mock",
+    ], dbPath)) as {
+      unhealthyProviders: string[];
+      eligibleFallbacks: string[];
+      impactedRequests: number;
+      impactedOptimizedCostUsd: number;
+      recommendations: Array<{ provider: string; action: string; fallbackProvider?: string }>;
+    };
+
+    expect(result.unhealthyProviders).toEqual(["groq"]);
+    expect(result.eligibleFallbacks).toEqual(["mock"]);
+    expect(result.impactedRequests).toBe(2);
+    expect(result.impactedOptimizedCostUsd).toBe(0.02);
+    expect(result.recommendations[0]).toMatchObject({ provider: "groq", action: "reroute", fallbackProvider: "mock" });
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {
@@ -403,6 +433,7 @@ function trace(
   provider = "mock",
   latency = 50,
   verifierPassed = true,
+  source: RequestTrace["finalResponseSource"] = "model",
 ): RequestTrace {
   return {
     id,
@@ -421,6 +452,6 @@ function trace(
     cost: { estimatedBaselineCost: baseline, estimatedOptimizedCost: baseline, estimatedSavings: 0 },
     quality: { verifierUsed: true, verifierPassed },
     normalizedHash: id,
-    finalResponseSource: "model",
+    finalResponseSource: source,
   };
 }

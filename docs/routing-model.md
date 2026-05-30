@@ -48,6 +48,7 @@ TokenOps can also learn provider SLO windows from local traces:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-impact --candidates groq,mock --max-p95-ms 1000
 ```
 
 SLO routing evaluates each provider over a recent trace window:
@@ -78,6 +79,8 @@ GET /routing/slo
 ```
 
 returns the current provider SLO policy.
+
+The `routing slo-impact` command turns the same local SLO window into an impact report: unhealthy providers, eligible fallback providers, number of impacted local traces, impacted optimized cost, and a concrete `reroute` or `warn` recommendation.
 
 ## Provider Health
 
