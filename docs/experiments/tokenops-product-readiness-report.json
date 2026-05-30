@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:31:45.177Z",
+  "generatedAt": "2026-05-30T15:34:29.782Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.5,
     "runtimeAvoidedProviderCalls": 4,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 24000,
+    "mockOutputTokensPerSecond": 20571.43,
     "groqLiveMeasured": false
   },
   "evidence": {
@@ -156,7 +156,7 @@
       "providerCalls": 8,
       "coalescedResponses": 4,
       "avoidedProviderCalls": 4,
-      "p50LatencyMs": 10,
+      "p50LatencyMs": 11,
       "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
@@ -210,14 +210,14 @@
       "skipped": false,
       "requests": 6,
       "concurrency": 3,
-      "wallTimeMs": 6,
+      "wallTimeMs": 7,
       "providerCalls": 6,
       "totalInputTokens": 240,
       "totalOutputTokens": 144,
       "totalTokens": 384,
-      "outputTokensPerSecond": 24000,
-      "totalTokensPerSecond": 64000,
-      "p50LatencyMs": 2,
+      "outputTokensPerSecond": 20571.43,
+      "totalTokensPerSecond": 54857.14,
+      "p50LatencyMs": 3,
       "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
@@ -346,6 +346,15 @@
       "promptTokens": 12,
       "completionTokens": 5,
       "reason": "gateway adapter returns OpenAI-compatible chat.completion shape with usage and TokenOps metadata"
+    },
+    "traceLedger": {
+      "storedTraceCount": 2,
+      "exactCacheHitRate": 0.5,
+      "modelDowngradeRate": 1,
+      "estimatedBaselineCost": 0.02,
+      "estimatedOptimizedCost": 0.002,
+      "estimatedSavings": 0.018,
+      "reason": "trace ledger stores request decisions and cost ledger summarizes cache/routing savings"
     }
   },
   "passed": {
@@ -362,6 +371,7 @@
     "semanticCacheSafetyBlocksRiskyPrivateWorkloads": true,
     "cheaperAnalyzerFindsAvoidableCompute": true,
     "openAICompatibleGatewayShape": true,
+    "traceLedgerRecordsCostAndCacheEvidence": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [

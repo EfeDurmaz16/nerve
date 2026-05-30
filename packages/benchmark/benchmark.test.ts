@@ -129,6 +129,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.gatewayCompatibility.hasUsage).toBe(true);
     expect(report.evidence.gatewayCompatibility.hasTokenOpsMetadata).toBe(true);
     expect(report.passed.openAICompatibleGatewayShape).toBe(true);
+    expect(report.evidence.traceLedger.storedTraceCount).toBe(2);
+    expect(report.evidence.traceLedger.estimatedSavings).toBeGreaterThan(0);
+    expect(report.evidence.traceLedger.exactCacheHitRate).toBeGreaterThan(0);
+    expect(report.passed.traceLedgerRecordsCostAndCacheEvidence).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });

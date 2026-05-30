@@ -2,7 +2,7 @@ import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenop
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { toOpenAIChatCompletion } from "@tokenops/gateway";
-import { analyzeTraces, type CheaperInsight } from "@tokenops/ledger";
+import { analyzeTraces, gatewayStats, TraceStore, type CheaperInsight } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
@@ -48,6 +48,7 @@ export interface ReadinessBenchmarkReport {
     cacheSafety: CacheSafetyProof;
     cheaperAnalyzer: CheaperAnalyzerProof;
     gatewayCompatibility: GatewayCompatibilityProof;
+    traceLedger: TraceLedgerProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -121,6 +122,16 @@ export interface GatewayCompatibilityProof {
   reason: string;
 }
 
+export interface TraceLedgerProof {
+  storedTraceCount: number;
+  exactCacheHitRate: number;
+  modelDowngradeRate: number;
+  estimatedBaselineCost: number;
+  estimatedOptimizedCost: number;
+  estimatedSavings: number;
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -157,6 +168,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const cacheSafety = buildCacheSafetyProof();
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
   const gatewayCompatibility = buildGatewayCompatibilityProof();
+  const traceLedger = buildTraceLedgerProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -175,6 +187,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
     openAICompatibleGatewayShape: gatewayCompatibility.object === "chat.completion" && gatewayCompatibility.hasChoices && gatewayCompatibility.hasUsage && gatewayCompatibility.hasTokenOpsMetadata,
+    traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -204,6 +217,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       cacheSafety,
       cheaperAnalyzer,
       gatewayCompatibility,
+      traceLedger,
       groqThroughput,
     },
     passed,
@@ -242,6 +256,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
+    `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
     "",
     "## Gates",
     "",
@@ -252,6 +267,28 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildTraceLedgerProof(): TraceLedgerProof {
+  const store = new TraceStore();
+  store.insert(routingTrace("ledger_model_call", 0.002, "gpt-5-mini"));
+  store.insert({
+    ...routingTrace("ledger_exact_hit", 0, "gpt-5-mini"),
+    cache: { exactHit: true, semanticHit: false, toolResultHit: false, contextBlockHit: true, prefixCacheEligibleTokens: 0 },
+    cost: { estimatedBaselineCost: 0.01, estimatedOptimizedCost: 0, estimatedSavings: 0.01 },
+    finalResponseSource: "exact_cache",
+  });
+  const traces = store.list(10);
+  const stats = gatewayStats(traces);
+  return {
+    storedTraceCount: traces.length,
+    exactCacheHitRate: stats.exact_cache_hit_rate,
+    modelDowngradeRate: stats.model_downgrade_rate,
+    estimatedBaselineCost: roundMoney(stats.cost.baselineCost),
+    estimatedOptimizedCost: roundMoney(stats.cost.optimizedCost),
+    estimatedSavings: roundMoney(stats.cost.estimatedSavings),
+    reason: "trace ledger stores request decisions and cost ledger summarizes cache/routing savings",
+  };
 }
 
 function buildGatewayCompatibilityProof(): GatewayCompatibilityProof {
