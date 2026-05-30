@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -90,6 +90,17 @@ describe("TokenOps benchmark", () => {
     expect(result.expectedCommand).toContain("GROQ_API_KEY");
   });
 
+  it("measures semantic cache safety against adversarial cache-reuse cases", async () => {
+    const result = await runSemanticCacheSafetyBenchmark("benchmark/evals/semantic-cache-safety.jsonl");
+    expect(result.totalCases).toBeGreaterThan(0);
+    expect(result.safeReuseAttempts).toBeGreaterThan(0);
+    expect(result.safeReuseHits).toBe(result.safeReuseAttempts);
+    expect(result.riskyReuseAttempts).toBeGreaterThan(0);
+    expect(result.riskyReuseBlocked).toBe(result.riskyReuseAttempts);
+    expect(result.falsePositiveUnsafeHits).toBe(0);
+    expect(result.passed).toBe(true);
+  });
+
   it("summarizes product readiness evidence across replay, runtime, and provider benchmarks", async () => {
     const report = await runReadinessBenchmark({
       loadRequests: 12,
@@ -121,6 +132,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.cacheSafety.safeDocsCacheability).toBe("semantic_safe");
     expect(report.evidence.cacheSafety.riskyPrivateCacheability).toBe("never_cache");
     expect(report.passed.semanticCacheSafetyBlocksRiskyPrivateWorkloads).toBe(true);
+    expect(report.evidence.semanticSafety.totalCases).toBeGreaterThan(0);
+    expect(report.evidence.semanticSafety.falsePositiveUnsafeHits).toBe(0);
+    expect(report.evidence.semanticSafety.falseNegativeSafeMisses).toBe(0);
+    expect(report.passed.semanticCacheAdversarialEvalPasses).toBe(true);
     expect(report.evidence.cheaperAnalyzer.insightCount).toBeGreaterThanOrEqual(2);
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("overkill_model");
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("prefix_cache");

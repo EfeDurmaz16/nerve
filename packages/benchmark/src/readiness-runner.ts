@@ -13,6 +13,7 @@ import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
+import { runSemanticCacheSafetyBenchmark, type SemanticSafetyBenchmarkResult } from "./semantic-safety-runner.js";
 
 export interface ReadinessBenchmarkOptions {
   loadRequests?: number;
@@ -47,6 +48,7 @@ export interface ReadinessBenchmarkReport {
     verifierGate: VerifierGateProof;
     policyControls: PolicyControlsProof;
     cacheSafety: CacheSafetyProof;
+    semanticSafety: SemanticSafetyBenchmarkResult;
     cheaperAnalyzer: CheaperAnalyzerProof;
     gatewayCompatibility: GatewayCompatibilityProof;
     traceLedger: TraceLedgerProof;
@@ -176,6 +178,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const verifierGate = await buildVerifierGateProof();
   const policyControls = buildPolicyControlsProof();
   const cacheSafety = buildCacheSafetyProof();
+  const semanticSafety = await runSemanticCacheSafetyBenchmark("benchmark/evals/semantic-cache-safety.jsonl");
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
   const gatewayCompatibility = buildGatewayCompatibilityProof();
   const traceLedger = buildTraceLedgerProof();
@@ -196,6 +199,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
+    semanticCacheAdversarialEvalPasses: semanticSafety.passed && semanticSafety.falsePositiveUnsafeHits === 0 && semanticSafety.falseNegativeSafeMisses === 0,
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
     openAICompatibleGatewayShape: gatewayCompatibility.object === "chat.completion" && gatewayCompatibility.hasChoices && gatewayCompatibility.hasUsage && gatewayCompatibility.hasTokenOpsMetadata,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
@@ -233,6 +237,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       verifierGate,
       policyControls,
       cacheSafety,
+      semanticSafety,
       cheaperAnalyzer,
       gatewayCompatibility,
       traceLedger,
@@ -273,6 +278,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
+    `- Semantic safety eval: ${report.evidence.semanticSafety.totalCases} cases, unsafe hits=${report.evidence.semanticSafety.falsePositiveUnsafeHits}, safe misses=${report.evidence.semanticSafety.falseNegativeSafeMisses}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,

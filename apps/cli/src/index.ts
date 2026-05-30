@@ -20,6 +20,7 @@ import {
   runLoadBenchmark,
   runProviderThroughputBenchmark,
   runReadinessBenchmark,
+  runSemanticCacheSafetyBenchmark,
 } from "@tokenops/benchmark";
 import type { ModelResponse, NormalizedRequest } from "@tokenops/core";
 import { providerHealthReport, SqliteTraceStore } from "@tokenops/ledger";
@@ -53,6 +54,7 @@ usage:
   tokenops trace <id>                    show trace lookup instructions
   tokenops cache stats                   show cache stats endpoint hint
   tokenops cache clear                   show cache clear endpoint hint
+  tokenops cache eval [dataset]          run adversarial semantic-cache safety eval
   tokenops analyze [--trace <id>]        show analyzer endpoint hint
   tokenops budget status                 show budget endpoint hint
   tokenops routing policy                learn and print routing policy from local traces
@@ -107,6 +109,7 @@ async function main() {
     if (cmd === "trace") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/traces/${argv[1] ?? "<id>"}`);
     if (cmd === "cache" && argv[1] === "stats") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/cache/stats`);
     if (cmd === "cache" && argv[1] === "clear") return console.log(`POST http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/cache/clear`);
+    if (cmd === "cache" && argv[1] === "eval") return cmdTokenOpsCacheEval(argv.slice(2));
     if (cmd === "analyze") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/analyze${getOpt(argv.slice(1), "--trace") ? `?trace=${getOpt(argv.slice(1), "--trace")}` : ""}`);
     if (cmd === "budget" && argv[1] === "status") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/budget/status`);
     if (cmd === "routing" && argv[1] === "policy") return cmdTokenOpsRoutingPolicy();
@@ -260,6 +263,13 @@ async function cmdTokenOpsDemo() {
   console.log(kleur.green(`Estimated total cost reduction: ${reduction.toFixed(1)}%`));
   console.log(kleur.cyan("AIS: foreground cache/model decisions and background verification are included in gateway traces when tokenops serve is running."));
   console.log(kleur.cyan("Analyzer: run tokenops analyze after gateway traffic for could-have-been-cheaper insights."));
+}
+
+async function cmdTokenOpsCacheEval(args: string[]) {
+  const dataset = args[0] ?? "benchmark/evals/semantic-cache-safety.jsonl";
+  const result = await runSemanticCacheSafetyBenchmark(dataset);
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.passed) process.exit(1);
 }
 
 function cmdTokenOpsRoutingPolicy() {

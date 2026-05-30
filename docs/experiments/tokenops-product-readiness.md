@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:40:31.825Z
+Generated: 2026-05-30T15:47:17.539Z
 
 ## Summary
 
@@ -8,11 +8,11 @@ Generated: 2026-05-30T15:40:31.825Z
 - Replay datasets: 6
 - Replay requests: 16
 - Baseline cost: $0.127855
-- Optimized cost: $0.00569
-- Estimated replay cost reduction: 95.5%
+- Optimized cost: $0.005666
+- Estimated replay cost reduction: 95.6%
 - Runtime avoided provider calls: 18
 - Micro-batching latency reduction: 0.9%
-- Mock output tokens/sec: 6857.14
+- Mock output tokens/sec: 8000
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
@@ -20,6 +20,7 @@ Generated: 2026-05-30T15:40:31.825Z
 - Verifier gate escalation: cheap pass, strong after fail
 - Policy controls: budget block, loop block
 - Cache safety: docs semantic_safe, risky never_cache
+- Semantic safety eval: 6 cases, unsafe hits=0, safe misses=0
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
 - Gateway compatibility: chat.completion, usage=true, tokenops=true
 - Trace ledger: 2 traces, savings=$0.018
@@ -38,6 +39,7 @@ Generated: 2026-05-30T15:40:31.825Z
 - verifierGateEscalatesFailedCheapAnswer: true
 - policyControlsBlockWastefulCompute: true
 - semanticCacheSafetyBlocksRiskyPrivateWorkloads: true
+- semanticCacheAdversarialEvalPasses: true
 - cheaperAnalyzerFindsAvoidableCompute: true
 - openAICompatibleGatewayShape: true
 - traceLedgerRecordsCostAndCacheEvidence: true
