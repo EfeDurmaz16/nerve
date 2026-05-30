@@ -130,7 +130,7 @@ async function main() {
     if (cmd === "throughput") return cmdTokenOpsThroughput(argv.slice(1));
     if (cmd === "proof") return cmdTokenOpsProof(argv.slice(1));
     if (cmd === "doctor") return cmdTokenOpsDoctor();
-    if (cmd === "demo") return cmdTokenOpsDemo();
+    if (cmd === "demo") return cmdTokenOpsDemo(argv.slice(1));
     if (cmd === "stats") return cmdDb();
     if (cmd === "trace") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/traces/${argv[1] ?? "<id>"}`);
     if (cmd === "traces" && argv[1] === "export") return cmdTokenOpsTracesExport(argv.slice(2));
@@ -407,22 +407,81 @@ async function cmdTokenOpsDoctor() {
   if (report.status === "fail") process.exit(1);
 }
 
-async function cmdTokenOpsDemo() {
-  console.log(kleur.bold("TokenOps demo: baseline direct calls vs optimized gateway simulation"));
-  const results = await replayAll();
-  let baseline = 0;
-  let optimized = 0;
-  for (const result of results) {
-    baseline += result.baseline_cost;
-    optimized += result.optimized_cost;
-    console.log("");
-    console.log(formatBenchmark(result));
+async function cmdTokenOpsDemo(args: string[]) {
+  const report = await runReadinessBenchmark({
+    includeGroq: args.includes("--include-groq"),
+    loadRequests: Number(getOpt(args, "--load-requests") ?? 12),
+    loadConcurrency: Number(getOpt(args, "--load-concurrency") ?? 6),
+    batchRequests: Number(getOpt(args, "--batch-requests") ?? 12),
+    throughputRequests: Number(getOpt(args, "--throughput-requests") ?? 6),
+    throughputConcurrency: Number(getOpt(args, "--throughput-concurrency") ?? 3),
+  });
+  const demo = {
+    readyForLocalDemo: report.summary.readyForLocalDemo,
+    replay: {
+      datasets: report.summary.replayDatasets,
+      requests: report.summary.totalReplayRequests,
+      baselineCostUsd: report.summary.baselineCostUsd,
+      optimizedCostUsd: report.summary.optimizedCostUsd,
+      estimatedCostReductionPct: report.summary.estimatedReplayCostReductionPct,
+    },
+    runtime: {
+      avoidedProviderCalls: report.summary.runtimeAvoidedProviderCalls,
+      priorityOrder: report.evidence.priorityScheduling.executionOrder,
+      loadShedding: {
+        foregroundAdmitted: report.evidence.loadShedding.foregroundAdmitted,
+        shedBackgroundRequests: report.evidence.loadShedding.shedBackgroundRequests,
+      },
+    },
+    cache: {
+      semanticSafetyCases: report.evidence.semanticSafety.totalCases,
+      poisonedResponsesBlocked: report.evidence.semanticSafety.poisonedResponseBlocked,
+      threshold: report.evidence.semanticThresholdSweep.recommendedThreshold,
+    },
+    routing: {
+      adaptiveRoute: `${report.evidence.adaptiveRouting.baseRoute.selectedModel} -> ${report.evidence.adaptiveRouting.learnedRoute.selectedModel}`,
+      providerArbitrage: `${report.evidence.providerArbitrage.originalProvider} -> ${report.evidence.providerArbitrage.selectedProvider}`,
+      providerSlo: `${report.evidence.providerSlo.originalProvider} -> ${report.evidence.providerSlo.selectedProvider}`,
+    },
+    verifier: {
+      expectedEscalations: report.evidence.verifierRouting.expectedEscalations,
+      actualEscalations: report.evidence.verifierRouting.actualEscalations,
+      missedEscalations: report.evidence.verifierRouting.missedEscalations,
+    },
+    policy: {
+      budget: report.evidence.policyControls.budget.action,
+      loop: report.evidence.policyControls.loop.action,
+    },
+    analyzer: {
+      insights: report.evidence.cheaperAnalyzer.insightCount,
+      avoidableCostUsd: report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd,
+    },
+    gateway: {
+      compatibility: report.passed.openAICompatibleGatewayShape,
+      smokeCommand: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787",
+    },
+    liveProviders: {
+      groqMeasured: report.summary.groqLiveMeasured,
+    },
+    passed: report.passed,
+    gaps: report.gaps,
+  };
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(demo, null, 2));
+    if (!demo.readyForLocalDemo) process.exit(1);
+    return;
   }
-  const reduction = baseline === 0 ? 0 : ((baseline - optimized) / baseline) * 100;
-  console.log("");
-  console.log(kleur.green(`Estimated total cost reduction: ${reduction.toFixed(1)}%`));
-  console.log(kleur.cyan("AIS: foreground cache/model decisions and background verification are included in gateway traces when tokenops serve is running."));
-  console.log(kleur.cyan("Analyzer: run tokenops analyze after gateway traffic for could-have-been-cheaper insights."));
+  console.log(kleur.bold("TokenOps demo: adaptive inference control plane proof"));
+  console.log(kleur.green(`Ready for local demo: ${demo.readyForLocalDemo}`));
+  console.log(`Replay: ${demo.replay.requests} requests across ${demo.replay.datasets} datasets, cost reduction ${demo.replay.estimatedCostReductionPct}%`);
+  console.log(`Runtime: avoided ${demo.runtime.avoidedProviderCalls} provider calls, load shedding foreground=${demo.runtime.loadShedding.foregroundAdmitted}`);
+  console.log(`Routing: adaptive ${demo.routing.adaptiveRoute}, arbitrage ${demo.routing.providerArbitrage}, SLO ${demo.routing.providerSlo}`);
+  console.log(`Verifier: escalations ${demo.verifier.actualEscalations}/${demo.verifier.expectedEscalations}, missed=${demo.verifier.missedEscalations}`);
+  console.log(`Policy: budget=${demo.policy.budget}, loop=${demo.policy.loop}`);
+  console.log(`Cache safety: ${demo.cache.semanticSafetyCases} cases, poisoned blocked=${demo.cache.poisonedResponsesBlocked}`);
+  console.log(`Analyzer: ${demo.analyzer.insights} insights, $${demo.analyzer.avoidableCostUsd} avoidable`);
+  console.log(`Gateway smoke: ${demo.gateway.smokeCommand}`);
+  if (!demo.readyForLocalDemo) process.exit(1);
 }
 
 async function cmdTokenOpsCacheEval(args: string[]) {

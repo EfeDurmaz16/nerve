@@ -168,6 +168,37 @@ describe("tokenops snapshot CLI", () => {
     });
   });
 
+  it("prints product demo readiness as JSON", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-demo-json-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+
+    const result = JSON.parse(execTokenOps([
+      "demo",
+      "--json",
+      "--load-requests",
+      "6",
+      "--load-concurrency",
+      "3",
+      "--batch-requests",
+      "6",
+      "--throughput-requests",
+      "3",
+      "--throughput-concurrency",
+      "2",
+    ], dbPath)) as {
+      readyForLocalDemo: boolean;
+      replay: { estimatedCostReductionPct: number };
+      runtime: { loadShedding: { foregroundAdmitted: boolean } };
+      gateway: { compatibility: boolean; smokeCommand: string };
+    };
+
+    expect(result.readyForLocalDemo).toBe(true);
+    expect(result.replay.estimatedCostReductionPct).toBeGreaterThan(0);
+    expect(result.runtime.loadShedding.foregroundAdmitted).toBe(true);
+    expect(result.gateway.compatibility).toBe(true);
+    expect(result.gateway.smokeCommand).toContain("gateway smoke");
+  });
+
   it("prints provider arbitrage route from local TokenOps traces", () => {
     const dir = mkdtempSync(join(tmpdir(), "tokenops-arbitrage-cli-"));
     const dbPath = join(dir, "tokenops.db");
