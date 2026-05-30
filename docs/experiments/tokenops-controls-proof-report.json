@@ -1,0 +1,86 @@
+{
+  "hypotheses": {
+    "semanticCache": "Safe docs-style paraphrase should use semantic cache instead of a second model call.",
+    "routing": "Safe docs-style request for an expensive model should downgrade to cheaper model.",
+    "safety": "Private/payment/secret requests should not be semantic-cache eligible.",
+    "verifier": "Cheap-then-verify should return cheap output on pass and escalate on fail.",
+    "loopLimiter": "Repeated identical agent prompts should produce a block signal."
+  },
+  "observed": {
+    "semanticCache": {
+      "first": {
+        "model": "gpt-5-mini",
+        "content": "Mock TokenOps response for docs_qa: documentation quickstart cache setup install guide",
+        "provider": "mock",
+        "exactHit": false,
+        "semanticHit": false,
+        "selectedModel": "gpt-5-mini",
+        "downgraded": true,
+        "escalated": false,
+        "policyAllowed": true
+      },
+      "second": {
+        "model": "gpt-5-mini",
+        "content": "Mock TokenOps response for docs_qa: documentation quickstart cache setup install guide",
+        "provider": "mock",
+        "exactHit": false,
+        "semanticHit": true,
+        "selectedModel": "gpt-5-mini",
+        "downgraded": true,
+        "escalated": false,
+        "policyAllowed": true
+      }
+    },
+    "routing": {
+      "model": "gpt-5-mini",
+      "content": "Mock TokenOps response for docs_qa: What does the documentation quickstart say about cache setup?",
+      "provider": "mock",
+      "exactHit": false,
+      "semanticHit": false,
+      "selectedModel": "gpt-5-mini",
+      "downgraded": true,
+      "escalated": false,
+      "policyAllowed": true
+    },
+    "safety": {
+      "workloadType": "high_risk_action",
+      "riskLevel": "high",
+      "cacheability": "never_cache"
+    },
+    "verifier": {
+      "passCase": {
+        "content": "safe answer",
+        "verifierPassed": true,
+        "escalatedAfterFail": false
+      },
+      "failCase": {
+        "content": "strong answer",
+        "verifierPassed": false,
+        "escalatedAfterFail": true
+      }
+    },
+    "loopLimiter": {
+      "action": "block",
+      "reason": "This agent repeated the same prompt 6 times."
+    }
+  },
+  "assertions": {
+    "semanticSecondHit": true,
+    "semanticDidNotUseExactCache": true,
+    "docsRequestDowngraded": true,
+    "riskyPromptNeverCache": true,
+    "verifierPassDoesNotEscalate": true,
+    "verifierFailEscalates": true,
+    "loopLimiterBlocks": true
+  },
+  "additionalProofs": {
+    "learnedRouting": "Covered by scripts/prove-tokenops-implemented-claims.ts as a trace-derived policy, not a bandit/RL optimizer.",
+    "modelBackedVerifier": "Covered by scripts/prove-tokenops-implemented-claims.ts with a provider-backed judge interface.",
+    "usageReconciliation": "Covered by scripts/prove-tokenops-implemented-claims.ts against usage tokens and local pricing."
+  },
+  "notProvenHere": {
+    "productionVerifierQuality": "This proves verifier control flow, not answer-quality lift across adversarial evals.",
+    "realSemanticCorrectness": "This proves lexical semantic-cache behavior on a controlled safe paraphrase, not broad semantic correctness.",
+    "providerInvoiceReconciliation": "Local usage reconciliation exists, but provider invoice ingestion is not implemented."
+  }
+}

@@ -1,0 +1,3 @@
+{"model":"gpt-5.5","messages":[{"role":"system","content":"Repo context hash abc123. Files: src/a.ts src/b.ts."},{"role":"user","content":"Explain what the code does."}],"expected_cache":"context"}
+{"model":"gpt-5.5","messages":[{"role":"system","content":"Repo context hash abc123. Files: src/a.ts src/b.ts."},{"role":"user","content":"Explain what the code does."}],"expected_cache":"exact"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Modify src/a.ts to change behavior."}],"expected_cache":"none"}

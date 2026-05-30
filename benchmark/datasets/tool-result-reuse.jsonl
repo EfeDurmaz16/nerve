@@ -1,0 +1,2 @@
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Use tool repo_scan with commit abc123"}],"expected_cache":"tool"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Use tool repo_scan with commit abc123"}],"expected_cache":"tool"}

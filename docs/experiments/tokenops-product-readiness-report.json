@@ -1,0 +1,264 @@
+{
+  "generatedAt": "2026-05-30T15:10:45.742Z",
+  "summary": {
+    "readyForLocalDemo": true,
+    "totalReplayRequests": 16,
+    "replayDatasets": 6,
+    "baselineCostUsd": 0.127855,
+    "optimizedCostUsd": 0.00569,
+    "estimatedReplayCostReductionPct": 95.5,
+    "runtimeAvoidedProviderCalls": 4,
+    "batchingLatencyReductionPct": 0.9,
+    "mockOutputTokensPerSecond": 24000,
+    "groqLiveMeasured": false
+  },
+  "evidence": {
+    "replay": [
+      {
+        "dataset": "agent-loop.jsonl",
+        "total_requests": 3,
+        "baseline_cost": 0.02328,
+        "optimized_cost": 0.00041,
+        "estimated_savings": 0.02287,
+        "exact_cache_hit_rate": 0.6667,
+        "semantic_cache_hit_rate": 0,
+        "tool_result_reuse_rate": 0,
+        "model_downgrade_rate": 0,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 20,
+        "p95_latency_estimate": 20,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 3,
+        "optimized_model_calls": 1,
+        "context_block_reuse_rate": 0.6667,
+        "estimated_input_tokens_saved": 32,
+        "estimated_output_tokens_saved": 1514,
+        "prefix_cache_eligible_tokens": 0,
+        "quality_warnings": []
+      },
+      {
+        "dataset": "coding-agent.jsonl",
+        "total_requests": 3,
+        "baseline_cost": 0.023385,
+        "optimized_cost": 0.00079,
+        "estimated_savings": 0.022595,
+        "exact_cache_hit_rate": 0.3333,
+        "semantic_cache_hit_rate": 0,
+        "tool_result_reuse_rate": 0,
+        "model_downgrade_rate": 0,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 1,
+        "p95_latency_estimate": 20,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 3,
+        "optimized_model_calls": 2,
+        "context_block_reuse_rate": 0.3333,
+        "estimated_input_tokens_saved": 28,
+        "estimated_output_tokens_saved": 1497,
+        "prefix_cache_eligible_tokens": 0,
+        "quality_warnings": []
+      },
+      {
+        "dataset": "docs-qa.jsonl",
+        "total_requests": 3,
+        "baseline_cost": 0.02346,
+        "optimized_cost": 0.000042,
+        "estimated_savings": 0.023418,
+        "exact_cache_hit_rate": 0.3333,
+        "semantic_cache_hit_rate": 0,
+        "tool_result_reuse_rate": 0,
+        "model_downgrade_rate": 1,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 1,
+        "p95_latency_estimate": 20,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 3,
+        "optimized_model_calls": 2,
+        "context_block_reuse_rate": 0.6667,
+        "estimated_input_tokens_saved": 26,
+        "estimated_output_tokens_saved": 1498,
+        "prefix_cache_eligible_tokens": 0,
+        "quality_warnings": []
+      },
+      {
+        "dataset": "long-prefix.jsonl",
+        "total_requests": 2,
+        "baseline_cost": 0.019,
+        "optimized_cost": 0.00409,
+        "estimated_savings": 0.01491,
+        "exact_cache_hit_rate": 0,
+        "semantic_cache_hit_rate": 0,
+        "tool_result_reuse_rate": 0,
+        "model_downgrade_rate": 0,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 1,
+        "p95_latency_estimate": 1,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 2,
+        "optimized_model_calls": 2,
+        "context_block_reuse_rate": 0.5,
+        "estimated_input_tokens_saved": 0,
+        "estimated_output_tokens_saved": 994,
+        "prefix_cache_eligible_tokens": 708,
+        "quality_warnings": []
+      },
+      {
+        "dataset": "support-faq.jsonl",
+        "total_requests": 3,
+        "baseline_cost": 0.02323,
+        "optimized_cost": 0.000018,
+        "estimated_savings": 0.023212,
+        "exact_cache_hit_rate": 0.3333,
+        "semantic_cache_hit_rate": 0.3333,
+        "tool_result_reuse_rate": 0,
+        "model_downgrade_rate": 1,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 20,
+        "p95_latency_estimate": 20,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 3,
+        "optimized_model_calls": 1,
+        "context_block_reuse_rate": 0.6667,
+        "estimated_input_tokens_saved": 25,
+        "estimated_output_tokens_saved": 1517,
+        "prefix_cache_eligible_tokens": 0,
+        "quality_warnings": []
+      },
+      {
+        "dataset": "tool-result-reuse.jsonl",
+        "total_requests": 2,
+        "baseline_cost": 0.0155,
+        "optimized_cost": 0.00034,
+        "estimated_savings": 0.01516,
+        "exact_cache_hit_rate": 0.5,
+        "semantic_cache_hit_rate": 0,
+        "tool_result_reuse_rate": 0.5,
+        "model_downgrade_rate": 0,
+        "verifier_escalation_rate": 0,
+        "p50_latency_estimate": 20,
+        "p95_latency_estimate": 20,
+        "wrong_cache_incidents": 0,
+        "baseline_model_calls": 2,
+        "optimized_model_calls": 1,
+        "context_block_reuse_rate": 0.5,
+        "estimated_input_tokens_saved": 14,
+        "estimated_output_tokens_saved": 1006,
+        "prefix_cache_eligible_tokens": 0,
+        "quality_warnings": []
+      }
+    ],
+    "runtimeCoalescing": {
+      "requests": 12,
+      "concurrency": 6,
+      "duplicateRatio": 0.75,
+      "providerLatencyMs": 8,
+      "wallTimeMs": 19,
+      "providerCalls": 8,
+      "coalescedResponses": 4,
+      "avoidedProviderCalls": 4,
+      "p50LatencyMs": 9,
+      "p95LatencyMs": 9,
+      "runtime": {
+        "scheduler": {
+          "maxConcurrent": 6,
+          "maxQueue": 12,
+          "inFlight": 0,
+          "queued": 0,
+          "admitted": 8,
+          "rejected": 0,
+          "completed": 8
+        },
+        "coalescer": {
+          "sharedCalls": 8,
+          "coalescedWaiters": 4,
+          "inFlightKeys": 0
+        },
+        "circuits": {
+          "mock": {
+            "state": "closed",
+            "failures": 0,
+            "halfOpenInFlight": 0
+          }
+        }
+      }
+    },
+    "microBatching": {
+      "requests": 12,
+      "batchSize": 6,
+      "batchWindowMs": 2,
+      "perBatchOverheadMs": 10,
+      "perItemLatencyMs": 1,
+      "baselineWallTimeMs": 132,
+      "batchedWallTimeMs": 17,
+      "estimatedLatencyReduction": 0.8712,
+      "batches": 2,
+      "largestBatch": 6,
+      "averageBatchSize": 6,
+      "runtime": {
+        "maxBatchSize": 6,
+        "maxDelayMs": 2,
+        "queued": 0,
+        "batches": 2,
+        "items": 12,
+        "largestBatch": 6,
+        "averageBatchSize": 6
+      }
+    },
+    "mockThroughput": {
+      "provider": "mock",
+      "model": "mock",
+      "skipped": false,
+      "requests": 6,
+      "concurrency": 3,
+      "wallTimeMs": 6,
+      "providerCalls": 6,
+      "totalInputTokens": 240,
+      "totalOutputTokens": 144,
+      "totalTokens": 384,
+      "outputTokensPerSecond": 24000,
+      "totalTokensPerSecond": 64000,
+      "p50LatencyMs": 2,
+      "p95LatencyMs": 3,
+      "errors": 0,
+      "sampleErrors": [],
+      "runtime": {
+        "scheduler": {
+          "maxConcurrent": 3,
+          "maxQueue": 6,
+          "inFlight": 0,
+          "queued": 0,
+          "admitted": 6,
+          "rejected": 0,
+          "completed": 6
+        },
+        "coalescer": {
+          "sharedCalls": 6,
+          "coalescedWaiters": 0,
+          "inFlightKeys": 0
+        },
+        "circuits": {
+          "mock": {
+            "state": "closed",
+            "failures": 0,
+            "halfOpenInFlight": 0
+          }
+        }
+      }
+    }
+  },
+  "passed": {
+    "replayShowsSavings": true,
+    "exactOrSemanticCacheObserved": true,
+    "toolOrContextReuseObserved": true,
+    "runtimeCoalescingAvoidsCalls": true,
+    "microBatchingReducesLatency": true,
+    "mockThroughputMeasured": true,
+    "groqThroughputAvailableWhenRequested": true
+  },
+  "gaps": [
+    "Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.",
+    "Semantic cache correctness is heuristic and needs larger adversarial evals before production use.",
+    "Pricing remains configurable estimate data, not provider invoice reconciliation.",
+    "Hosted multi-tenant auth, deployment, dashboards, and enterprise controls are intentionally out of scope for this local prototype."
+  ]
+}

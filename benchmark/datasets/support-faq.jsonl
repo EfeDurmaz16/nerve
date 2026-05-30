@@ -1,0 +1,3 @@
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Support FAQ: how do I clear cache?"}],"expected_cache":"none"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Support FAQ: how do I clear cache?"}],"expected_cache":"exact"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"FAQ says how to clear the cache?"}],"expected_cache":"semantic"}

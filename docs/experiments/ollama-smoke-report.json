@@ -1,0 +1,6 @@
+{
+  "generatedAt": "2026-05-30T08:28:57.609Z",
+  "skipped": true,
+  "reason": "Ollama is not reachable at http://localhost:11434",
+  "expectedCommand": "OLLAMA_MODEL=llama3.2 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts smoke ollama"
+}

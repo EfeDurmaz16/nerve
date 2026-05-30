@@ -1,0 +1,15 @@
+{
+  "name": "@nerve/replay",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@nerve/ir": "workspace:*",
+    "@nerve/store": "workspace:*",
+    "@nerve/planner": "workspace:*",
+    "@nerve/verifiers": "workspace:*",
+    "ulid": "^2.3.0"
+  }
+}

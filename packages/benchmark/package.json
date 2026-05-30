@@ -1,0 +1,17 @@
+{
+  "name": "@tokenops/benchmark",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@tokenops/cache": "workspace:*",
+    "@tokenops/core": "workspace:*",
+    "@tokenops/gateway": "workspace:*",
+    "@tokenops/providers": "workspace:*",
+    "@tokenops/profiler": "workspace:*",
+    "@tokenops/router": "workspace:*",
+    "@tokenops/runtime": "workspace:*"
+  }
+}

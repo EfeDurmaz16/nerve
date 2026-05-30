@@ -1,0 +1,83 @@
+{
+  "implementedClaims": {
+    "learnedRouting": {
+      "policy": {
+        "generatedAt": "2026-05-30T07:57:52.313Z",
+        "minSamples": 2,
+        "rules": [
+          {
+            "workloadType": "docs_qa",
+            "riskLevel": "low",
+            "selectedProvider": "groq",
+            "selectedModel": "gpt-5-mini",
+            "samples": 2,
+            "averageOptimizedCost": 0.00015,
+            "averageSavings": 0.00985,
+            "reason": "learned from 2 successful traces; avg_cost=0.00015 avg_savings=0.00985"
+          }
+        ]
+      },
+      "appliedRoute": {
+        "selectedProvider": "groq",
+        "selectedModel": "gpt-5-mini",
+        "originalRequestedModel": "gpt-5.5",
+        "downgraded": true,
+        "escalated": false,
+        "reason": "learned routing policy: learned from 2 successful traces; avg_cost=0.00015 avg_savings=0.00985"
+      }
+    },
+    "modelBackedVerifier": {
+      "pass": {
+        "status": "passed",
+        "reason": "PASS: grounded in supplied docs",
+        "recommended_action": "return",
+        "rawJudgment": "PASS: grounded in supplied docs",
+        "verifierProvider": "judge"
+      },
+      "fail": {
+        "status": "failed",
+        "reason": "FAIL: answer is not grounded",
+        "recommended_action": "escalate",
+        "rawJudgment": "FAIL: answer is not grounded",
+        "verifierProvider": "judge"
+      }
+    },
+    "semanticVerificationDecision": {
+      "passDecision": {
+        "serve": true,
+        "backgroundVerify": false,
+        "reason": "PASS: grounded in supplied docs"
+      },
+      "failDecision": {
+        "serve": false,
+        "backgroundVerify": false,
+        "reason": "FAIL: answer is not grounded"
+      }
+    },
+    "usageReconciliation": {
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "promptTokens": 42,
+      "completionTokens": 4,
+      "estimatedCostUsd": 0.000028,
+      "recordedCostUsd": 0.000028,
+      "deltaUsd": 0,
+      "status": "matched",
+      "reason": "recorded cost matches local pricing estimate within tolerance"
+    }
+  },
+  "assertions": {
+    "learnedRoutingChoosesMini": true,
+    "modelVerifierPassesGroundedAnswer": true,
+    "modelVerifierFailsUngroundedAnswer": true,
+    "semanticPassServesCache": true,
+    "semanticFailDoesNotServeCache": true,
+    "costReconciliationMatches": true
+  },
+  "limits": {
+    "learnedRouting": "Implemented as trace-derived policy rules, not a bandit/RL optimizer.",
+    "verifier": "Implemented as model-backed verifier interface. Production quality depends on verifier prompt, model, evals, and adversarial testing.",
+    "semanticCorrectness": "Implemented serving decision based on verifier output, not broad empirical semantic-cache benchmark yet.",
+    "billing": "Implemented local pricing reconciliation against usage tokens, not provider invoice ingestion."
+  }
+}

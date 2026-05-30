@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+import { replayDataset, runBatchBenchmark, runLoadBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark } from "./src/index.js";
+
+describe("TokenOps benchmark", () => {
+  it("reports required replay metrics", async () => {
+    const result = await replayDataset("benchmark/datasets/docs-qa.jsonl");
+    expect(result.total_requests).toBeGreaterThan(0);
+    expect(result).toHaveProperty("exact_cache_hit_rate");
+    expect(result).toHaveProperty("semantic_cache_hit_rate");
+    expect(result).toHaveProperty("model_downgrade_rate");
+    expect(result.baseline_model_calls).toBe(result.total_requests);
+    expect(result.optimized_model_calls).toBeLessThan(result.baseline_model_calls!);
+    expect(result.estimated_input_tokens_saved).toBeGreaterThan(0);
+  });
+
+  it("reports context and tool reuse signals", async () => {
+    const context = await replayDataset("benchmark/datasets/long-prefix.jsonl");
+    const tool = await replayDataset("benchmark/datasets/tool-result-reuse.jsonl");
+    expect(context.context_block_reuse_rate).toBeGreaterThan(0);
+    expect(context.prefix_cache_eligible_tokens).toBeGreaterThan(0);
+    expect(tool.tool_result_reuse_rate).toBeGreaterThan(0);
+  });
+
+  it("measures runtime coalescing under concurrent duplicate load", async () => {
+    const result = await runLoadBenchmark({
+      requests: 20,
+      concurrency: 10,
+      duplicateRatio: 0.8,
+      providerLatencyMs: 5,
+      maxConcurrentInference: 10,
+    });
+    expect(result.requests).toBe(20);
+    expect(result.providerCalls).toBeLessThan(result.requests);
+    expect(result.coalescedResponses).toBeGreaterThan(0);
+    expect(result.avoidedProviderCalls).toBeGreaterThan(0);
+    expect(result.runtime.coalescer.coalescedWaiters).toBe(result.coalescedResponses);
+  });
+
+  it("measures micro-batching throughput gains", async () => {
+    const result = await runBatchBenchmark({
+      requests: 16,
+      batchSize: 4,
+      batchWindowMs: 1,
+      perBatchOverheadMs: 8,
+      perItemLatencyMs: 1,
+    });
+    expect(result.batches).toBe(4);
+    expect(result.largestBatch).toBe(4);
+    expect(result.batchedWallTimeMs).toBeLessThan(result.baselineWallTimeMs);
+    expect(result.estimatedLatencyReduction).toBeGreaterThan(0);
+  });
+
+  it("measures provider throughput with token rate metrics", async () => {
+    const result = await runProviderThroughputBenchmark({
+      provider: "mock",
+      requests: 12,
+      concurrency: 4,
+      providerLatencyMs: 2,
+    });
+    expect(result.skipped).toBe(false);
+    expect(result.requests).toBe(12);
+    expect(result.providerCalls).toBe(12);
+    expect(result.totalTokens).toBeGreaterThan(0);
+    expect(result.outputTokensPerSecond).toBeGreaterThan(0);
+    expect(result.p95LatencyMs).toBeGreaterThanOrEqual(result.p50LatencyMs);
+  });
+
+  it("skips unavailable Ollama throughput checks with an actionable report", async () => {
+    const result = await runProviderThroughputBenchmark({
+      provider: "ollama",
+      requests: 1,
+      concurrency: 1,
+      baseUrl: "http://127.0.0.1:9",
+      availabilityTimeoutMs: 25,
+    });
+    expect(result.skipped).toBe(true);
+    expect(result.skipReason).toContain("Ollama");
+    expect(result.expectedCommand).toContain("ollama serve");
+  });
+
+  it("skips Groq throughput checks when no API key is configured", async () => {
+    const result = await runProviderThroughputBenchmark({
+      provider: "groq",
+      apiKey: "",
+      requests: 1,
+      concurrency: 1,
+    });
+    expect(result.skipped).toBe(true);
+    expect(result.skipReason).toContain("GROQ_API_KEY");
+    expect(result.expectedCommand).toContain("GROQ_API_KEY");
+  });
+
+  it("summarizes product readiness evidence across replay, runtime, and provider benchmarks", async () => {
+    const report = await runReadinessBenchmark({
+      loadRequests: 12,
+      loadConcurrency: 6,
+      batchRequests: 12,
+      throughputRequests: 6,
+      throughputConcurrency: 3,
+      includeGroq: false,
+    });
+    expect(report.summary.readyForLocalDemo).toBe(true);
+    expect(report.summary.totalReplayRequests).toBeGreaterThan(0);
+    expect(report.summary.estimatedReplayCostReductionPct).toBeGreaterThan(0);
+    expect(report.evidence.runtimeCoalescing.avoidedProviderCalls).toBeGreaterThan(0);
+    expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
+    expect(report.evidence.mockThroughput.outputTokensPerSecond).toBeGreaterThan(0);
+    expect(report.gaps.length).toBeGreaterThan(0);
+  });
+});

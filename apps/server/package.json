@@ -1,0 +1,34 @@
+{
+  "name": "@nerve/server",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  },
+  "dependencies": {
+    "@nerve/ir": "workspace:*",
+    "@nerve/store": "workspace:*",
+    "@nerve/planner": "workspace:*",
+    "@nerve/miner": "workspace:*",
+    "@nerve/learner": "workspace:*",
+    "@nerve/replay": "workspace:*",
+    "@nerve/verifiers": "workspace:*",
+    "@nerve/importers": "workspace:*",
+    "@tokenops/ais": "workspace:*",
+    "@tokenops/cache": "workspace:*",
+    "@tokenops/core": "workspace:*",
+    "@tokenops/gateway": "workspace:*",
+    "@tokenops/ledger": "workspace:*",
+    "@tokenops/policy": "workspace:*",
+    "@tokenops/profiler": "workspace:*",
+    "@tokenops/providers": "workspace:*",
+    "@tokenops/router": "workspace:*",
+    "@tokenops/runtime": "workspace:*",
+    "@tokenops/benchmark": "workspace:*",
+    "fastify": "^5.1.0",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  }
+}

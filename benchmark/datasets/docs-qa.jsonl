@@ -1,0 +1,3 @@
+{"model":"gpt-5.5","messages":[{"role":"system","content":"Answer from the public TokenOps docs only."},{"role":"user","content":"What is TokenOps quickstart?"}],"expected_cache":"none"}
+{"model":"gpt-5.5","messages":[{"role":"system","content":"Answer from the public TokenOps docs only."},{"role":"user","content":"What is TokenOps quickstart?"}],"expected_cache":"exact"}
+{"model":"gpt-5.5","messages":[{"role":"system","content":"Answer from the public TokenOps docs only."},{"role":"user","content":"Explain the TokenOps quickstart from documentation."}],"expected_cache":"semantic"}

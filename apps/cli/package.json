@@ -1,0 +1,27 @@
+{
+  "name": "@nerve/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": { "nerve": "./bin/nerve", "tokenops": "./bin/tokenops" },
+  "scripts": { "start": "tsx src/index.ts" },
+  "dependencies": {
+    "@nerve/ir": "workspace:*",
+    "@nerve/store": "workspace:*",
+    "@nerve/planner": "workspace:*",
+    "@nerve/miner": "workspace:*",
+    "@nerve/learner": "workspace:*",
+    "@nerve/replay": "workspace:*",
+    "@nerve/verifiers": "workspace:*",
+    "@nerve/importers": "workspace:*",
+    "@nerve/sdk-ts": "workspace:*",
+    "@tokenops/benchmark": "workspace:*",
+    "@tokenops/core": "workspace:*",
+    "@tokenops/ledger": "workspace:*",
+    "@tokenops/providers": "workspace:*",
+    "@tokenops/router": "workspace:*",
+    "@tokenops/verifier": "workspace:*",
+    "kleur": "^4.1.5",
+    "ulid": "^2.3.0",
+    "zod": "^3.23.8"
+  }
+}

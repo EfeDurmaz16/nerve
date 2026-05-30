@@ -1,0 +1,197 @@
+# Quickstart
+
+Install:
+
+```bash
+pnpm install
+```
+
+Run tests:
+
+```bash
+pnpm test
+pnpm typecheck
+```
+
+Start gateway:
+
+```bash
+TOKENOPS_PORT=8787 pnpm --filter @nerve/server start
+```
+
+Run with Groq as the real LLM provider:
+
+```bash
+GROQ_API_KEY=... \
+TOKENOPS_PROVIDER=groq \
+GROQ_MODEL=llama-3.3-70b-versatile \
+TOKENOPS_PORT=8787 \
+pnpm --filter @nerve/server start
+```
+
+Run with fallback providers:
+
+```bash
+TOKENOPS_PROVIDER=groq,ollama,mock \
+GROQ_API_KEY=... \
+TOKENOPS_PORT=8787 \
+pnpm --filter @nerve/server start
+```
+
+The gateway tries providers left-to-right. If Groq is unavailable, it can fall back to local Ollama and then the deterministic mock provider.
+
+Use an OpenAI-compatible client with:
+
+```bash
+OPENAI_BASE_URL=http://localhost:8787/v1
+```
+
+Smoke test:
+
+```bash
+curl -sS http://127.0.0.1:8787/health
+curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
+  -H 'content-type: application/json' \
+  -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart"}]}'
+```
+
+Run benchmark:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
+```
+
+For local model infra, run an availability-aware Ollama throughput check:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput ollama --requests 8 --concurrency 2 --model llama3.2
+```
+
+If Ollama is not running, this returns a skipped report with the expected `ollama serve` command.
+
+For hosted inference throughput with the Groq key in `.env`:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
+```
+
+Generate a product-readiness proof report:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
+```
+
+This writes `docs/experiments/tokenops-product-readiness-report.json` and `docs/experiments/tokenops-product-readiness.md`.
+
+Run a live direct-vs-gateway Groq comparison:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare groq
+```
+
+Run the same comparison for OpenAI:
+
+```bash
+OPENAI_API_KEY=... TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare openai
+```
+
+If `OPENAI_API_KEY` is missing, the command writes a skipped report instead of failing.
+
+This writes:
+
+- `docs/experiments/groq-live-comparison-report.json`
+- `docs/experiments/groq-live-comparison.md`
+
+Run verifier eval:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
+```
+
+Print the learned routing policy from local traces:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
+```
+
+Print provider health from local traces:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
+```
+
+Run Ollama smoke:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts smoke ollama
+```
+
+If local Ollama is not reachable, the command writes a skipped report instead of failing.
+
+Enable trace-derived adaptive routing in the gateway:
+
+```bash
+TOKENOPS_ADAPTIVE_ROUTING=1 TOKENOPS_ROUTING_MIN_SAMPLES=2 pnpm --filter @nerve/server start
+```
+
+Enable SLO routing:
+
+```bash
+TOKENOPS_SLO_ROUTING=1 \
+TOKENOPS_PROVIDER=groq,mock \
+TOKENOPS_SLO_MAX_ERROR_RATE=0.1 \
+TOKENOPS_SLO_MAX_P95_LATENCY_MS=10000 \
+pnpm --filter @nerve/server start
+```
+
+Enable runtime compute guardrails:
+
+```bash
+TOKENOPS_MAX_REQUEST_COST_USD=0.01 \
+TOKENOPS_DAILY_BUDGET_USD=2 \
+TOKENOPS_MAX_REQUESTS_PER_USER_PER_DAY=100 \
+TOKENOPS_RATE_LIMIT_PER_MINUTE=30 \
+TOKENOPS_AGENT_LOOP_MAX_REPEATS=6 \
+pnpm --filter @nerve/server start
+```
+
+These controls run before provider execution. Budget and quota blocks return an explainable error and still write a TokenOps trace. Provider errors also write a trace and return `x-tokenops-trace-id`.
+
+Inspect policy state:
+
+```bash
+curl -sS http://127.0.0.1:8787/budget/status
+curl -sS http://127.0.0.1:8787/rate-limit/status
+curl -sS http://127.0.0.1:8787/runtime/stats
+```
+
+Tune the local inference runtime:
+
+```bash
+TOKENOPS_MAX_CONCURRENT_INFERENCE=8 \
+TOKENOPS_MAX_INFERENCE_QUEUE=100 \
+TOKENOPS_CIRCUIT_FAILURE_THRESHOLD=3 \
+TOKENOPS_CIRCUIT_COOLDOWN_MS=30000 \
+TOKENOPS_PROVIDER_TIMEOUT_MS=30000 \
+pnpm --filter @nerve/server start
+```
+
+Run replay through the HTTP API:
+
+```bash
+curl -sS -X POST http://127.0.0.1:8787/replay \
+  -H 'content-type: application/json' \
+  -d '{"dataset":"benchmark/datasets/docs-qa.jsonl"}'
+curl -sS http://127.0.0.1:8787/benchmark/results
+```
+
+Run demo:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo
+```

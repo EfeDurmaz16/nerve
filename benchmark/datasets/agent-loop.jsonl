@@ -1,0 +1,3 @@
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Agent plan next step after tool error retry 1"}],"expected_cache":"none"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Agent plan next step after tool error retry 1"}],"expected_cache":"exact"}
+{"model":"gpt-5.5","messages":[{"role":"user","content":"Agent plan next step after tool error retry 1"}],"expected_cache":"exact"}

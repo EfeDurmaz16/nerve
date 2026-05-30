@@ -1,0 +1,99 @@
+{
+  "generatedAt": "2026-05-30T15:02:58.444Z",
+  "hypothesis": {
+    "directGroq": "Two identical direct requests make two provider calls.",
+    "tokenops": "Two identical gateway requests make one provider call and one exact-cache hit."
+  },
+  "model": "llama-3.3-70b-versatile",
+  "direct": {
+    "providerCalls": 2,
+    "ids": [
+      "chatcmpl-b400c291-57ef-48ea-bf2e-d2f1ca825c58",
+      "chatcmpl-9d588687-715d-4825-8369-514efeb1a1eb"
+    ],
+    "contents": [
+      "TokenOps comparison live",
+      "TokenOps comparison live"
+    ],
+    "totalTokens": 96
+  },
+  "tokenops": {
+    "providerCallsObserved": 1,
+    "traceIds": [
+      "tr_01KSWPHSG3YT14AV10G71YWZB5",
+      "tr_01KSWPHSM9KN0P39FQP14TG2PQ"
+    ],
+    "exactHits": [
+      false,
+      true
+    ],
+    "contents": [
+      "TokenOps comparison live",
+      "TokenOps comparison live"
+    ],
+    "stats": {
+      "requests": 2,
+      "exact_cache_hit_rate": 0.5,
+      "semantic_cache_hit_rate": 0,
+      "model_downgrade_rate": 0,
+      "cost": {
+        "totalRequests": 2,
+        "baselineCost": 0.000826,
+        "optimizedCost": 0.000413,
+        "estimatedSavings": 0.000413,
+        "byModel": {
+          "llama-3.3-70b-versatile": 0.000413
+        },
+        "byProvider": {
+          "groq": 0.000413
+        },
+        "byUser": {},
+        "byAgent": {}
+      },
+      "provider_health": {
+        "generatedAt": "2026-05-30T15:02:58.443Z",
+        "providers": {
+          "groq": {
+            "provider": "groq",
+            "requests": 2,
+            "blockedRate": 0,
+            "verifierPassRate": 1,
+            "averageOptimizedCostUsd": 0.000207,
+            "p95LatencyMs": 124,
+            "cacheHitRate": 0.5,
+            "healthScore": 0.9248
+          }
+        }
+      }
+    },
+    "cacheStats": {
+      "exact": {
+        "entries": 1,
+        "exact": 1,
+        "hits": 1,
+        "byType": {
+          "exact": 1
+        }
+      },
+      "semantic": {
+        "entries": 0,
+        "threshold": 0.72,
+        "hits": 0
+      },
+      "tool": {
+        "entries": 0,
+        "hits": 0
+      },
+      "context": {
+        "entries": 3,
+        "hits": 3
+      }
+    }
+  },
+  "assertions": {
+    "directMadeTwoCalls": true,
+    "tokenopsObservedOneProviderCall": true,
+    "secondGatewayCallExactHit": true,
+    "contentMatches": true
+  }
+}

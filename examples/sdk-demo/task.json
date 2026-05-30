@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "agent_id": "sql_agent_demo",
+  "intent": "Generate a SQL query that joins users and orders to compute order count per user. Schema: users(id, name), orders(id, user_id, total_cents).",
+  "modality": "code",
+  "risk_class": "medium",
+  "inputs": {
+    "schema": {
+      "users": ["id", "name"],
+      "orders": ["id", "user_id", "total_cents"]
+    },
+    "output_schema": { "required": ["sql"] }
+  },
+  "budget_hint": { "max_usd": 0.02, "max_latency_ms": 5000 },
+  "tools_available": ["sqlite_run"],
+  "context_refs": ["schema.users", "schema.orders"]
+}

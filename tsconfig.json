@@ -1,0 +1,31 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@nerve/ir": ["packages/ir/src/index.ts"],
+      "@nerve/store": ["packages/store/src/index.ts"],
+      "@nerve/verifiers": ["packages/verifiers/src/index.ts"],
+      "@nerve/importers": ["packages/importers/src/index.ts"],
+      "@nerve/miner": ["packages/miner/src/index.ts"],
+      "@nerve/learner": ["packages/learner/src/index.ts"],
+      "@nerve/planner": ["packages/planner/src/index.ts"],
+      "@nerve/replay": ["packages/replay/src/index.ts"],
+      "@nerve/sdk-ts": ["packages/sdk-ts/src/index.ts"],
+      "@tokenops/core": ["packages/core/src/index.ts"],
+      "@tokenops/gateway": ["packages/gateway/src/index.ts"],
+      "@tokenops/providers": ["packages/providers/src/index.ts"],
+      "@tokenops/ledger": ["packages/ledger/src/index.ts"],
+      "@tokenops/cache": ["packages/cache/src/index.ts"],
+      "@tokenops/profiler": ["packages/profiler/src/index.ts"],
+      "@tokenops/router": ["packages/router/src/index.ts"],
+      "@tokenops/policy": ["packages/policy/src/index.ts"],
+      "@tokenops/ais": ["packages/ais/src/index.ts"],
+      "@tokenops/verifier": ["packages/verifier/src/index.ts"],
+      "@tokenops/runtime": ["packages/runtime/src/index.ts"],
+      "@tokenops/benchmark": ["packages/benchmark/src/index.ts"]
+    },
+    "noEmit": true
+  },
+  "include": ["packages/**/src/**/*.ts", "apps/**/src/**/*.ts", "apps/**/test/**/*.ts", "packages/**/test/**/*.ts", "scripts/**/*.ts"]
+}

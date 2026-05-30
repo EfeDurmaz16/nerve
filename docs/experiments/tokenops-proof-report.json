@@ -1,0 +1,160 @@
+{
+  "hypothesis": {
+    "directGroq": "Two identical direct requests produce two provider calls.",
+    "tokenops": "Two identical TokenOps requests produce one provider call and one exact-cache hit.",
+    "persistence": "SQLite exact cache survives app restart.",
+    "budget": "Over-budget requests are blocked before provider execution.",
+    "safety": "Risky/private payment prompts are not semantic-cache eligible."
+  },
+  "model": "llama-3.3-70b-versatile",
+  "directGroq": {
+    "providerCalls": 2,
+    "responseIds": [
+      "chatcmpl-c3ae7e86-b182-4fa8-8b3c-c7378457ccf7",
+      "chatcmpl-25eeee0d-29b9-4c6f-aa5b-b94fac40e554"
+    ],
+    "contents": [
+      "TokenOps proof live",
+      "TokenOps proof live"
+    ],
+    "totalTokens": 96
+  },
+  "tokenops": {
+    "firstCall": {
+      "id": "chatcmpl-0feb0d8d-04ba-4d6b-8656-726b7dc98f45",
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "exactHit": false,
+      "semanticHit": false,
+      "content": "TokenOps proof live",
+      "costUsd": 0.000029,
+      "latencyMs": 117
+    },
+    "secondCall": {
+      "id": "chatcmpl-0feb0d8d-04ba-4d6b-8656-726b7dc98f45",
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "exactHit": true,
+      "semanticHit": false,
+      "content": "TokenOps proof live",
+      "costUsd": 0.000029,
+      "latencyMs": 117
+    },
+    "providerCallsObserved": 1,
+    "appStats": {
+      "requests": 3,
+      "exact_cache_hit_rate": 0.3333333333333333,
+      "semantic_cache_hit_rate": 0,
+      "model_downgrade_rate": 0,
+      "cost": {
+        "totalRequests": 3,
+        "baselineCost": 0.790837,
+        "optimizedCost": 0.000413,
+        "estimatedSavings": 0.790424,
+        "byModel": {
+          "llama-3.3-70b-versatile": 0.000413
+        },
+        "byProvider": {
+          "groq": 0.000413
+        },
+        "byUser": {},
+        "byAgent": {}
+      }
+    },
+    "cacheStats": {
+      "exact": {
+        "entries": 1,
+        "hits": 1,
+        "byType": {
+          "exact": 1
+        }
+      },
+      "semantic": {
+        "entries": 0,
+        "threshold": 0.72
+      }
+    }
+  },
+  "restartPersistence": {
+    "afterRestart": {
+      "id": "chatcmpl-0feb0d8d-04ba-4d6b-8656-726b7dc98f45",
+      "provider": "groq",
+      "model": "llama-3.3-70b-versatile",
+      "exactHit": true,
+      "semanticHit": false,
+      "content": "TokenOps proof live",
+      "costUsd": 0.000029,
+      "latencyMs": 117
+    },
+    "appStats": {
+      "requests": 4,
+      "exact_cache_hit_rate": 0.5,
+      "semantic_cache_hit_rate": 0,
+      "model_downgrade_rate": 0,
+      "cost": {
+        "totalRequests": 4,
+        "baselineCost": 0.79125,
+        "optimizedCost": 0.000413,
+        "estimatedSavings": 0.790837,
+        "byModel": {
+          "llama-3.3-70b-versatile": 0.000413
+        },
+        "byProvider": {
+          "groq": 0.000413
+        },
+        "byUser": {},
+        "byAgent": {}
+      }
+    }
+  },
+  "budgetBlock": {
+    "statusCode": 402,
+    "body": {
+      "error": {
+        "message": "estimated request cost exceeds max_request_cost_usd (0.5)",
+        "type": "budget_policy_block"
+      },
+      "tokenops": {
+        "trace_id": "tr_01KSVY7DVFQG6PN0SHBX4YBTJD",
+        "compute_plan": {
+          "requestId": "req_01KSVY7DVFQG6PN0SHBX4YBTJD",
+          "foregroundAction": "block_budget",
+          "backgroundTasks": [],
+          "modelRoute": {
+            "primary": "llama-3.3-70b-versatile",
+            "fallback": "gpt-5.5"
+          },
+          "cacheStrategy": {
+            "exact": true,
+            "semantic": true,
+            "toolResult": false,
+            "contextBlock": true,
+            "prefixSimulation": true
+          },
+          "contextStrategy": {
+            "dedupeRepeatedContext": false,
+            "prefixCacheEligibleTokens": 0
+          },
+          "expected": {
+            "latencyMs": 500,
+            "costUsd": 0.790011,
+            "risk": "low"
+          },
+          "reason": "estimated request cost exceeds max_request_cost_usd (0.5); requested model retained"
+        }
+      }
+    }
+  },
+  "safety": {
+    "riskyPromptCacheability": "never_cache"
+  },
+  "assertions": {
+    "directMadeTwoCalls": true,
+    "tokenopsSecondCallExactHit": true,
+    "tokenopsObservedOneProviderCall": true,
+    "restartExactHit": true,
+    "budgetBlocked": true,
+    "riskyPromptNotSemanticSafe": true,
+    "contentMatches": true
+  }
+}

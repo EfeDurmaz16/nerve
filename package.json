@@ -1,0 +1,24 @@
+{
+  "name": "nerve",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Inference compiler for agents. Compile each task into a budget-aware compute plan.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "packageManager": "pnpm@11.1.2",
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' --filter './apps/*' build",
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "demo": "bash scripts/demo.sh",
+    "seed": "node --import tsx scripts/seed.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "tsup": "^8.3.5",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
+}
