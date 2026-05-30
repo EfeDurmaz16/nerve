@@ -100,6 +100,9 @@ The repo still ships the legacy `nerve` CLI. TokenOps commands are available thr
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay benchmark/datasets/docs-qa.jsonl --persist
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
@@ -127,6 +130,9 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops serve`
 - `tokenops replay <dataset>`
 - `tokenops replay --all`
+- `tokenops replay <dataset> --persist`
+- `tokenops export <file>`
+- `tokenops import <file>`
 - `tokenops load`
 - `tokenops batch`
 - `tokenops failover`
@@ -299,6 +305,7 @@ Production-like:
 - AIS compute plan
 - request trace and cost ledger
 - SQLite-backed idempotency records for retry-safe non-streaming chat completions
+- snapshot import/export for TokenOps traces and benchmark results
 - benchmark datasets and replay runner
 - mock provider
 - Groq provider over OpenAI-compatible HTTP

@@ -475,6 +475,36 @@ export const listTokenOpsBenchmarkResults = (db: DB, limit = 100): BenchmarkResu
   return rows.map((r) => JSON.parse(r.body) as BenchmarkResult);
 };
 
+export interface TokenOpsSnapshot {
+  schema_version: "tokenops.snapshot.v1";
+  exported_at: string;
+  traces: RequestTrace[];
+  benchmark_results: BenchmarkResult[];
+}
+
+export function exportTokenOpsSnapshot(
+  db: DB,
+  opts: { traceLimit?: number; benchmarkLimit?: number } = {},
+): TokenOpsSnapshot {
+  return {
+    schema_version: "tokenops.snapshot.v1",
+    exported_at: new Date().toISOString(),
+    traces: listTokenOpsTraces(db, { limit: opts.traceLimit ?? 10_000 }),
+    benchmark_results: listTokenOpsBenchmarkResults(db, opts.benchmarkLimit ?? 10_000),
+  };
+}
+
+export function importTokenOpsSnapshot(db: DB, snapshot: TokenOpsSnapshot): { traces: number; benchmark_results: number } {
+  if (snapshot.schema_version !== "tokenops.snapshot.v1") throw new Error(`unsupported TokenOps snapshot schema: ${snapshot.schema_version}`);
+  for (const trace of snapshot.traces) insertTokenOpsTrace(db, trace);
+  let benchmarkCount = 0;
+  for (const [index, result] of snapshot.benchmark_results.entries()) {
+    insertTokenOpsBenchmarkResult(db, `import_${snapshot.exported_at}_${index}_${result.dataset}`, result);
+    benchmarkCount++;
+  }
+  return { traces: snapshot.traces.length, benchmark_results: benchmarkCount };
+}
+
 // ---------- TokenOps idempotency records ----------
 export interface TokenOpsIdempotencyRecord<T = unknown> {
   route: string;

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import kleur from "kleur";
-import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch } from "@nerve/store";
+import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch, exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult } from "@nerve/store";
 import { compileTask } from "@nerve/planner";
 import { mineAll } from "@nerve/miner";
 import { generateEvals, learn } from "@nerve/learner";
@@ -48,6 +48,8 @@ usage:
   tokenops serve                         start OpenAI-compatible gateway on :8787
   tokenops replay <dataset>              run baseline-vs-optimized benchmark
   tokenops replay --all                  run all benchmark datasets
+  tokenops export <file>                 export local TokenOps traces and benchmark results
+  tokenops import <file>                 import a TokenOps snapshot
   tokenops load                          run local concurrent inference runtime benchmark
   tokenops batch                         run local micro-batching throughput benchmark
   tokenops failover                      run provider circuit-breaker/fallback benchmark
@@ -105,6 +107,8 @@ async function main() {
   if (BIN_NAME.includes("tokenops")) {
     if (cmd === "serve") return cmdServe();
     if (cmd === "replay") return cmdTokenOpsReplay(argv.slice(1));
+    if (cmd === "export") return cmdTokenOpsExport(argv.slice(1));
+    if (cmd === "import") return cmdTokenOpsImport(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
     if (cmd === "failover") return cmdTokenOpsFailover(argv.slice(1));
@@ -176,18 +180,42 @@ function cmdServe() {
 }
 
 async function cmdTokenOpsReplay(args: string[]) {
+  const persist = args.includes("--persist");
   if (args.includes("--all")) {
     const results = await replayAll();
     for (const result of results) {
       console.log(formatBenchmark(result));
       console.log("");
     }
+    if (persist) persistBenchmarkResults(results);
     return;
   }
-  const dataset = args[0];
+  const dataset = args.find((arg) => !arg.startsWith("--"));
   if (!dataset) return die("usage: tokenops replay <dataset>|--all");
   const result = await replayDataset(dataset);
+  if (persist) persistBenchmarkResults([result]);
   console.log(formatBenchmark(result));
+}
+
+function cmdTokenOpsExport(args: string[]) {
+  const file = args[0];
+  if (!file) return die("usage: tokenops export <file>");
+  const db = openDb(DB_PATH);
+  const snapshot = exportTokenOpsSnapshot(db, {
+    traceLimit: Number(getOpt(args, "--trace-limit") ?? 10_000),
+    benchmarkLimit: Number(getOpt(args, "--benchmark-limit") ?? 10_000),
+  });
+  writeFileSync(resolve(file), `${JSON.stringify(snapshot, null, 2)}\n`);
+  console.log(kleur.green(`✓ exported ${snapshot.traces.length} traces and ${snapshot.benchmark_results.length} benchmark results to ${resolve(file)}`));
+}
+
+function cmdTokenOpsImport(args: string[]) {
+  const file = args[0];
+  if (!file) return die("usage: tokenops import <file>");
+  const db = openDb(DB_PATH);
+  const snapshot = JSON.parse(readFileSync(resolve(file), "utf8")) as ReturnType<typeof exportTokenOpsSnapshot>;
+  const imported = importTokenOpsSnapshot(db, snapshot);
+  console.log(kleur.green(`✓ imported ${imported.traces} traces and ${imported.benchmark_results} benchmark results from ${resolve(file)}`));
 }
 
 async function cmdTokenOpsLoad(args: string[]) {
@@ -503,7 +531,15 @@ async function cmdCompile(args: string[]) {
 function cmdDb() {
   const db = openDb(DB_PATH);
   const c = countTraces(db);
-  console.log(JSON.stringify({ db: DB_PATH, ...c, clusters: listClusters(db).length, patches: listPatches(db).length }, null, 2));
+  const snapshot = exportTokenOpsSnapshot(db, { traceLimit: 100_000, benchmarkLimit: 100_000 });
+  console.log(JSON.stringify({
+    db: DB_PATH,
+    ...c,
+    clusters: listClusters(db).length,
+    patches: listPatches(db).length,
+    tokenops_request_traces: snapshot.traces.length,
+    tokenops_benchmark_results: snapshot.benchmark_results.length,
+  }, null, 2));
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -515,6 +551,14 @@ function getOpt(args: string[], name: string): string | undefined {
 function die(msg: string): never {
   console.error(kleur.red(msg));
   process.exit(2);
+}
+
+function persistBenchmarkResults(results: Awaited<ReturnType<typeof replayAll>>): void {
+  const db = openDb(DB_PATH);
+  const now = Date.now();
+  for (const [index, result] of results.entries()) {
+    insertTokenOpsBenchmarkResult(db, `cli_${now}_${index}_${result.dataset}`, result);
+  }
 }
 
 function expandFiles(args: string[]): string[] {

@@ -74,10 +74,18 @@ Run benchmark:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay benchmark/datasets/docs-qa.jsonl --persist
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
+```
+
+Export or import local TokenOps evidence:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
 ```
 
 For local model infra, run an availability-aware Ollama throughput check:

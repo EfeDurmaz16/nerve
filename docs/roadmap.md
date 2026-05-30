@@ -22,6 +22,7 @@ This roadmap separates what the current workspace can reach now from what should
 - SQLite-backed TokenOps exact cache entries
 - SQLite-backed idempotency records for retry-safe gateway calls
 - SQLite-backed benchmark results
+- snapshot import/export for TokenOps traces and benchmark results
 - `/replay` API for local dataset benchmark runs
 - `/benchmark/results`
 - could-have-been-cheaper analyzer endpoint
@@ -36,8 +37,7 @@ The 1-month target is a credible local/self-hosted alpha that can sit in front o
 
 - Move all TokenOps cache layers into SQLite-backed stores.
 - Add migrations for semantic cache, tool-result cache, context-block fingerprints, daily budget usage, and provider call attempts.
-- Add retention policy and pruning commands.
-- Add import/export for benchmark results and traces.
+- Add retention policy and pruning commands for local and imported evidence.
 
 ### Provider Adapters
 

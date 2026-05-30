@@ -18,6 +18,14 @@ Run:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay benchmark/datasets/docs-qa.jsonl --persist
+```
+
+Persisted replay results can be exported with local gateway traces:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
 ```
 
 Reported metrics include:
