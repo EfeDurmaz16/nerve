@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:29:09.666Z",
+  "generatedAt": "2026-05-30T15:31:45.177Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.5,
     "runtimeAvoidedProviderCalls": 4,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 20571.43,
+    "mockOutputTokensPerSecond": 24000,
     "groqLiveMeasured": false
   },
   "evidence": {
@@ -210,14 +210,14 @@
       "skipped": false,
       "requests": 6,
       "concurrency": 3,
-      "wallTimeMs": 7,
+      "wallTimeMs": 6,
       "providerCalls": 6,
       "totalInputTokens": 240,
       "totalOutputTokens": 144,
       "totalTokens": 384,
-      "outputTokensPerSecond": 20571.43,
-      "totalTokensPerSecond": 54857.14,
-      "p50LatencyMs": 3,
+      "outputTokensPerSecond": 24000,
+      "totalTokensPerSecond": 64000,
+      "p50LatencyMs": 2,
       "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
@@ -336,6 +336,16 @@
         "This model call was not served from cache; check exact, semantic, tool-result, or context-block reuse opportunities."
       ],
       "reason": "post-run analyzer finds overpowered model use, prefix-cache opportunity, and uncached model-call waste"
+    },
+    "gatewayCompatibility": {
+      "object": "chat.completion",
+      "model": "mock",
+      "hasChoices": true,
+      "hasUsage": true,
+      "hasTokenOpsMetadata": true,
+      "promptTokens": 12,
+      "completionTokens": 5,
+      "reason": "gateway adapter returns OpenAI-compatible chat.completion shape with usage and TokenOps metadata"
     }
   },
   "passed": {
@@ -351,6 +361,7 @@
     "policyControlsBlockWastefulCompute": true,
     "semanticCacheSafetyBlocksRiskyPrivateWorkloads": true,
     "cheaperAnalyzerFindsAvoidableCompute": true,
+    "openAICompatibleGatewayShape": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [

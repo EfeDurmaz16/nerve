@@ -125,6 +125,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("overkill_model");
     expect(report.evidence.cheaperAnalyzer.kinds).toContain("prefix_cache");
     expect(report.passed.cheaperAnalyzerFindsAvoidableCompute).toBe(true);
+    expect(report.evidence.gatewayCompatibility.object).toBe("chat.completion");
+    expect(report.evidence.gatewayCompatibility.hasUsage).toBe(true);
+    expect(report.evidence.gatewayCompatibility.hasTokenOpsMetadata).toBe(true);
+    expect(report.passed.openAICompatibleGatewayShape).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });

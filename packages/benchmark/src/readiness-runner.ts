@@ -1,6 +1,7 @@
 import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
+import { toOpenAIChatCompletion } from "@tokenops/gateway";
 import { analyzeTraces, type CheaperInsight } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
@@ -46,6 +47,7 @@ export interface ReadinessBenchmarkReport {
     policyControls: PolicyControlsProof;
     cacheSafety: CacheSafetyProof;
     cheaperAnalyzer: CheaperAnalyzerProof;
+    gatewayCompatibility: GatewayCompatibilityProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -108,6 +110,17 @@ export interface CheaperAnalyzerProof {
   reason: string;
 }
 
+export interface GatewayCompatibilityProof {
+  object: string;
+  model: string;
+  hasChoices: boolean;
+  hasUsage: boolean;
+  hasTokenOpsMetadata: boolean;
+  promptTokens: number;
+  completionTokens: number;
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -143,6 +156,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const policyControls = buildPolicyControlsProof();
   const cacheSafety = buildCacheSafetyProof();
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
+  const gatewayCompatibility = buildGatewayCompatibilityProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -160,6 +174,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
+    openAICompatibleGatewayShape: gatewayCompatibility.object === "chat.completion" && gatewayCompatibility.hasChoices && gatewayCompatibility.hasUsage && gatewayCompatibility.hasTokenOpsMetadata,
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -188,6 +203,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       policyControls,
       cacheSafety,
       cheaperAnalyzer,
+      gatewayCompatibility,
       groqThroughput,
     },
     passed,
@@ -225,6 +241,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
+    `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     "",
     "## Gates",
     "",
@@ -235,6 +252,40 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildGatewayCompatibilityProof(): GatewayCompatibilityProof {
+  const request = normalizeChatCompletionRequest({
+    model: "mock",
+    messages: [{ role: "user", content: "gateway compatibility proof" }],
+  }, { provider: "mock", workloadType: "docs_qa", riskLevel: "low" });
+  const response = toOpenAIChatCompletion(request, {
+    id: "chatcmpl_readiness",
+    model: "mock",
+    provider: "mock",
+    content: "OpenAI-compatible TokenOps response",
+    finish_reason: "stop",
+    input_tokens: 12,
+    output_tokens: 5,
+    latency_ms: 1,
+    cost_usd: 0,
+  }) as {
+    object: string;
+    model: string;
+    choices?: unknown[];
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+    tokenops?: unknown;
+  };
+  return {
+    object: response.object,
+    model: response.model,
+    hasChoices: Array.isArray(response.choices) && response.choices.length > 0,
+    hasUsage: typeof response.usage?.prompt_tokens === "number" && typeof response.usage?.completion_tokens === "number",
+    hasTokenOpsMetadata: Boolean(response.tokenops),
+    promptTokens: response.usage?.prompt_tokens ?? 0,
+    completionTokens: response.usage?.completion_tokens ?? 0,
+    reason: "gateway adapter returns OpenAI-compatible chat.completion shape with usage and TokenOps metadata",
+  };
 }
 
 function buildCheaperAnalyzerProof(): CheaperAnalyzerProof {

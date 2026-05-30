@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:29:09.666Z
+Generated: 2026-05-30T15:31:45.177Z
 
 ## Summary
 
@@ -12,7 +12,7 @@ Generated: 2026-05-30T15:29:09.666Z
 - Estimated replay cost reduction: 95.5%
 - Runtime avoided provider calls: 4
 - Micro-batching latency reduction: 0.9%
-- Mock output tokens/sec: 20571.43
+- Mock output tokens/sec: 24000
 - Groq live measured: false
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
@@ -21,6 +21,7 @@ Generated: 2026-05-30T15:29:09.666Z
 - Policy controls: budget block, loop block
 - Cache safety: docs semantic_safe, risky never_cache
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
+- Gateway compatibility: chat.completion, usage=true, tokenops=true
 
 ## Gates
 
@@ -36,6 +37,7 @@ Generated: 2026-05-30T15:29:09.666Z
 - policyControlsBlockWastefulCompute: true
 - semanticCacheSafetyBlocksRiskyPrivateWorkloads: true
 - cheaperAnalyzerFindsAvoidableCompute: true
+- openAICompatibleGatewayShape: true
 - groqThroughputAvailableWhenRequested: true
 
 ## Gaps
