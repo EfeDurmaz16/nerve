@@ -53,7 +53,15 @@ export function stableRequestHash(input: {
   agent_id?: string;
 }): string {
   const relevantMetadata = Object.fromEntries(
-    Object.entries(input.metadata).filter(([key]) => !["request_id", "trace_id", "timestamp", "created_at"].includes(key)),
+    Object.entries(input.metadata).filter(([key]) => ![
+      "request_id",
+      "trace_id",
+      "timestamp",
+      "created_at",
+      "tokenops_priority",
+      "tokenopsPriority",
+      "priority",
+    ].includes(key)),
   );
   return hashJson({
     provider: input.provider,

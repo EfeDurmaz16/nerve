@@ -35,7 +35,7 @@ import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } f
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
 import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota, simulateBudgetPolicy } from "@tokenops/policy";
 import { applyLearnedRouting, applyProviderArbitrage, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "@tokenops/router";
-import { InferenceRuntime } from "@tokenops/runtime";
+import { InferenceRuntime, QueueFullError, QueueShedError } from "@tokenops/runtime";
 import { planCompute } from "@tokenops/ais";
 import type { DB } from "@nerve/store";
 import { replayAll, replayDataset } from "@tokenops/benchmark";
@@ -315,12 +315,25 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
         const runtimeResult = await runtime.execute({
           providerKey: route.selectedProvider,
           coalesceKey: providerCoalesceKey(request, route),
+          priority: runtimePriorityForRequest(request),
           run: () => providerFor(route.selectedProvider).complete({ ...request, provider: route.selectedProvider, requested_model: route.selectedModel }),
         });
         runtimeCoalesced = runtimeResult.coalesced;
         response = runtimeResult.value;
       } catch (e) {
-        const errorPolicy = { action: "block" as const, allowed: false, reason: `provider error: ${(e as Error).message}`, budgetRemaining: effectivePolicy.budgetRemaining };
+        const admissionError = e instanceof QueueShedError || e instanceof QueueFullError;
+        const errorType = e instanceof QueueShedError
+          ? "inference_queue_shed"
+          : e instanceof QueueFullError
+            ? "inference_queue_full"
+            : "provider_error";
+        const statusCode = e instanceof QueueShedError ? 503 : e instanceof QueueFullError ? 429 : 502;
+        const errorPolicy = {
+          action: "block" as const,
+          allowed: false,
+          reason: admissionError ? `runtime admission control: ${(e as Error).message}` : `provider error: ${(e as Error).message}`,
+          budgetRemaining: effectivePolicy.budgetRemaining,
+        };
         const trace = buildTrace({
           request,
           route,
@@ -333,18 +346,20 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
           optimizedCost: 0,
           outputTokens: 0,
           providerLatencyMs: Date.now() - providerStarted,
-          source: "provider_error",
+          source: admissionError ? "blocked" : "provider_error",
           computePlanId: plan.requestId,
         });
         state.traceStore.insert(trace);
-        recordProviderAttempts(db, trace.id, request, route.selectedModel, route.selectedProvider, undefined, false, Date.now() - providerStarted, (e as Error).message);
+        if (!admissionError) {
+          recordProviderAttempts(db, trace.id, request, route.selectedModel, route.selectedProvider, undefined, false, Date.now() - providerStarted, (e as Error).message);
+        }
         reply.header("x-tokenops-trace-id", trace.id);
-        return reply.code(502).send({
+        return reply.code(statusCode).send({
           error: {
             message: (e as Error).message,
-            type: "provider_error",
+            type: errorType,
           },
-          tokenops: { provider: route.selectedProvider, route, trace_id: trace.id },
+          tokenops: { provider: route.selectedProvider, route, trace_id: trace.id, runtime: { stats: runtime.stats() } },
         });
       }
       state.exactCache.set(request, response);
@@ -828,6 +843,15 @@ function providerArbitrageCandidates(providerName: string): string[] {
 
 function providerCoalesceKey(request: NormalizedRequest, route: ReturnType<typeof routeModel>): string {
   return [route.selectedProvider, route.selectedModel, request.normalized_hash].join(":");
+}
+
+function runtimePriorityForRequest(request: NormalizedRequest): number {
+  const raw = request.metadata.tokenops_priority ?? request.metadata.tokenopsPriority ?? request.metadata.priority;
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed)) return Math.trunc(parsed);
+  if (request.workload_type === "verification") return -5;
+  if (request.workload_type === "agent_planning" || request.workload_type === "agent_tool_reasoning") return -1;
+  return 0;
 }
 
 function idempotencyKey(value: unknown): string | undefined {

@@ -67,10 +67,16 @@ GET /runtime/stats
 
 Returns:
 
-- scheduler max concurrency, queue length, admitted, rejected, completed
+- scheduler max concurrency, queue length, admitted, rejected, shed, completed
 - scheduler queued counts by priority
 - coalescer shared calls and coalesced waiters
 - circuit breaker state by provider key
+
+Gateway requests can set `metadata.tokenops_priority` to influence admission
+under saturation. The default foreground priority is `0`; background maintenance
+work should use a lower value such as `-10`. Runtime priority metadata is
+excluded from the stable request hash, so changing admission priority does not
+create a separate cache identity for the same semantic request.
 
 ## Load Benchmark
 

@@ -581,6 +581,50 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("sheds low-priority queued gateway work to protect foreground inference", async () => {
+    await withEnv({
+      TOKENOPS_PROVIDER: "mock",
+      TOKENOPS_MOCK_DELAY_MS: "40",
+      TOKENOPS_MAX_CONCURRENT_INFERENCE: "1",
+      TOKENOPS_MAX_INFERENCE_QUEUE: "1",
+    }, async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const blocker = app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: { model: "mock", messages: [{ role: "user", content: "load shed blocker" }] },
+      });
+      await delay(5);
+      const background = app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: {
+          model: "mock",
+          metadata: { tokenops_priority: -10 },
+          messages: [{ role: "user", content: "low priority background compression" }],
+        },
+      });
+      await delay(5);
+      const foreground = app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: { model: "mock", messages: [{ role: "user", content: "foreground user request" }] },
+      });
+
+      const [blockerRes, backgroundRes, foregroundRes] = await Promise.all([blocker, background, foreground]);
+      expect(blockerRes.statusCode).toBe(200);
+      expect(backgroundRes.statusCode).toBe(503);
+      expect(backgroundRes.json().error.type).toBe("inference_queue_shed");
+      expect(foregroundRes.statusCode).toBe(200);
+      expect(foregroundRes.json().tokenops.runtime.stats.scheduler.shed).toBe(1);
+      const stats = (await app.inject({ method: "GET", url: "/runtime/stats" })).json();
+      expect(stats.scheduler.shed).toBe(1);
+      expect(stats.scheduler.rejected).toBe(0);
+      expect(stats.circuits.mock.state).toBe("closed");
+      await app.close();
+    });
+  });
+
   it("opens a provider circuit after repeated provider failures", async () => {
     const oldGroqKey = process.env.GROQ_API_KEY;
     await withEnv({ TOKENOPS_PROVIDER: "groq", TOKENOPS_CIRCUIT_FAILURE_THRESHOLD: "1", TOKENOPS_CIRCUIT_COOLDOWN_MS: "10000", GROQ_API_KEY: undefined }, async () => {
@@ -716,4 +760,8 @@ function serverTrace(
     normalizedHash: id,
     finalResponseSource: source,
   };
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

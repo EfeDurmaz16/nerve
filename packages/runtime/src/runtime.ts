@@ -1,6 +1,6 @@
 import type { ModelResponse } from "@tokenops/core";
 import { CircuitBreaker, type CircuitSnapshot } from "./circuit-breaker.js";
-import { InferenceScheduler, type SchedulerStats } from "./inference-scheduler.js";
+import { InferenceScheduler, QueueFullError, QueueShedError, type SchedulerStats } from "./inference-scheduler.js";
 import { InFlightCoalescer, type CoalescerStats } from "./inflight-coalescer.js";
 
 export interface InferenceRuntimeOptions {
@@ -51,7 +51,9 @@ export class InferenceRuntime {
         this.breaker.recordSuccess(input.providerKey);
         return value;
       } catch (error) {
-        this.breaker.recordFailure(input.providerKey);
+        if (!(error instanceof QueueFullError) && !(error instanceof QueueShedError)) {
+          this.breaker.recordFailure(input.providerKey);
+        }
         throw error;
       }
     }).then(({ value, coalesced }) => ({ value, coalesced, circuit: circuitBefore }));

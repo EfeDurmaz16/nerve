@@ -15,6 +15,18 @@ describe("TokenOps core", () => {
     expect(a.requested_model).toBe("gpt-5.5");
   });
 
+  it("excludes runtime priority metadata from stable request hashes", () => {
+    const base = {
+      model: "gpt-5.5",
+      messages: [{ role: "user" as const, content: "What is TokenOps?" }],
+      metadata: { stable: "yes" },
+    };
+    const foreground = normalizeChatCompletionRequest({ ...base, metadata: { ...base.metadata, tokenops_priority: 10 } });
+    const background = normalizeChatCompletionRequest({ ...base, metadata: { ...base.metadata, tokenops_priority: -10 } });
+
+    expect(foreground.normalized_hash).toBe(background.normalized_hash);
+  });
+
   it("estimates tokens and costs", () => {
     const req = normalizeChatCompletionRequest({
       model: "gpt-5-mini",
