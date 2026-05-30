@@ -2,7 +2,7 @@ import { planCompute } from "@tokenops/ais";
 import type { BenchmarkResult, ComputePlan, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
-import { toOpenAIChatCompletion } from "@tokenops/gateway";
+import { toOpenAIChatCompletion, toOpenAIResponse } from "@tokenops/gateway";
 import { analyzeTraces, gatewayStats, TraceStore, type CheaperInsight } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
@@ -127,6 +127,9 @@ export interface GatewayCompatibilityProof {
   hasChoices: boolean;
   hasUsage: boolean;
   hasTokenOpsMetadata: boolean;
+  responsesObject: string;
+  responsesHasOutputText: boolean;
+  responsesHasOutput: boolean;
   promptTokens: number;
   completionTokens: number;
   reason: string;
@@ -222,7 +225,14 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
     semanticCacheAdversarialEvalPasses: semanticSafety.passed && semanticSafety.falsePositiveUnsafeHits === 0 && semanticSafety.falseNegativeSafeMisses === 0,
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
-    openAICompatibleGatewayShape: gatewayCompatibility.object === "chat.completion" && gatewayCompatibility.hasChoices && gatewayCompatibility.hasUsage && gatewayCompatibility.hasTokenOpsMetadata,
+    openAICompatibleGatewayShape:
+      gatewayCompatibility.object === "chat.completion" &&
+      gatewayCompatibility.hasChoices &&
+      gatewayCompatibility.hasUsage &&
+      gatewayCompatibility.hasTokenOpsMetadata &&
+      gatewayCompatibility.responsesObject === "response" &&
+      gatewayCompatibility.responsesHasOutputText &&
+      gatewayCompatibility.responsesHasOutput,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
     aisPlannerChoosesForegroundAndBackgroundActions:
       aisPlanner.exactCachePlan.foregroundAction === "serve_exact_cache" &&
@@ -307,7 +317,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
     `- Semantic safety eval: ${report.evidence.semanticSafety.totalCases} cases, unsafe hits=${report.evidence.semanticSafety.falsePositiveUnsafeHits}, safe misses=${report.evidence.semanticSafety.falseNegativeSafeMisses}`,
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
-    `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
+    `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object} + ${report.evidence.gatewayCompatibility.responsesObject}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
     `- AIS planner: exact=${report.evidence.aisPlanner.exactCachePlan.foregroundAction}, semantic=${report.evidence.aisPlanner.semanticCachePlan.foregroundAction}, budget=${report.evidence.aisPlanner.budgetBlockPlan.foregroundAction}`,
     "",
@@ -451,15 +461,33 @@ function buildGatewayCompatibilityProof(): GatewayCompatibilityProof {
     usage?: { prompt_tokens?: number; completion_tokens?: number };
     tokenops?: unknown;
   };
+  const responses = toOpenAIResponse(request, {
+    id: "resp_readiness_model",
+    model: "mock",
+    provider: "mock",
+    content: "OpenAI-compatible TokenOps response",
+    finish_reason: "stop",
+    input_tokens: 12,
+    output_tokens: 5,
+    latency_ms: 1,
+    cost_usd: 0,
+  }, "resp_readiness") as {
+    object: string;
+    output_text?: string;
+    output?: unknown[];
+  };
   return {
     object: response.object,
     model: response.model,
     hasChoices: Array.isArray(response.choices) && response.choices.length > 0,
     hasUsage: typeof response.usage?.prompt_tokens === "number" && typeof response.usage?.completion_tokens === "number",
     hasTokenOpsMetadata: Boolean(response.tokenops),
+    responsesObject: responses.object,
+    responsesHasOutputText: typeof responses.output_text === "string" && responses.output_text.length > 0,
+    responsesHasOutput: Array.isArray(responses.output) && responses.output.length > 0,
     promptTokens: response.usage?.prompt_tokens ?? 0,
     completionTokens: response.usage?.completion_tokens ?? 0,
-    reason: "gateway adapter returns OpenAI-compatible chat.completion shape with usage and TokenOps metadata",
+    reason: "gateway adapter returns OpenAI-compatible chat.completion and response shapes with usage and TokenOps metadata",
   };
 }
 

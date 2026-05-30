@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeOpenAIChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream } from "./src/index.js";
+import { normalizeOpenAIChatRequest, normalizeOpenAIResponsesRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIResponse } from "./src/index.js";
 
 describe("TokenOps gateway", () => {
   it("normalizes OpenAI chat requests", () => {
@@ -45,5 +45,37 @@ describe("TokenOps gateway", () => {
     });
     expect(stream).toContain("chat.completion.chunk");
     expect(stream).toContain("data: [DONE]");
+  });
+
+  it("normalizes OpenAI responses requests into chat requests", () => {
+    const req = normalizeOpenAIResponsesRequest({
+      model: "gpt-5-mini",
+      input: "Explain TokenOps cache policy.",
+      metadata: { agent_id: "agent_1" },
+    });
+    expect(req.requested_model).toBe("gpt-5-mini");
+    expect(req.messages[0]!.role).toBe("user");
+    expect(req.messages[0]!.content).toBe("Explain TokenOps cache policy.");
+    expect(req.agent_id).toBe("agent_1");
+  });
+
+  it("returns OpenAI-compatible responses shape", () => {
+    const req = normalizeOpenAIResponsesRequest({ model: "mock", input: "hello" });
+    const out = toOpenAIResponse(req, {
+      id: "resp_model",
+      model: "mock",
+      provider: "mock",
+      content: "hi",
+      finish_reason: "stop",
+      input_tokens: 10,
+      output_tokens: 2,
+      latency_ms: 1,
+      cost_usd: 0,
+    }, "resp_test");
+    expect(out.object).toBe("response");
+    expect(out.id).toBe("resp_test");
+    expect(out.output_text).toBe("hi");
+    expect(out.output[0]!.content[0]!.text).toBe("hi");
+    expect(out.usage.total_tokens).toBe(12);
   });
 });

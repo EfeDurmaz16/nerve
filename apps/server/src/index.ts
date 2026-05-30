@@ -26,7 +26,7 @@ import { runVerifiers } from "@nerve/verifiers";
 import { replay } from "@nerve/replay";
 import { SemanticCache, SqliteContextBlockCache, SqliteExactCache, SqliteSemanticCache, SqliteToolResultCache, simulatePrefixCache } from "@tokenops/cache";
 import { estimateCost, estimateInputTokens, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
-import { normalizeOpenAIChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream } from "@tokenops/gateway";
+import { normalizeOpenAIChatRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIResponse } from "@tokenops/gateway";
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
 import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota } from "@tokenops/policy";
@@ -49,6 +49,12 @@ const TOKEN = process.env.NERVE_TOKEN ?? process.env.TOKENOPS_TOKEN ?? "";
 
 function selectedProviderName(): string {
   return process.env.TOKENOPS_PROVIDER ?? (process.env.GROQ_API_KEY ? "groq" : "mock");
+}
+
+function internalForwardHeaders(headers: Record<string, unknown>): Record<string, string> {
+  const forwarded: Record<string, string> = {};
+  if (typeof headers.authorization === "string") forwarded.authorization = headers.authorization;
+  return forwarded;
 }
 
 function loadDotEnv(path = resolve(process.cwd(), ".env")): void {
@@ -330,6 +336,54 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       return reply.send(toOpenAIChatCompletionStream(response));
     }
     return { ...toOpenAIChatCompletion(request, response), tokenops: { ...toOpenAIChatCompletion(request, response).tokenops, trace_id: trace.id, compute_plan: plan, cache: trace.cache, routing: trace.routing, policy: trace.policy, runtime: { coalesced: runtimeCoalesced, stats: runtime.stats() } } };
+  });
+
+  app.post("/v1/responses", async (req, reply) => {
+    let chatPayload: ReturnType<typeof responsesRequestToChatRequest>;
+    try {
+      chatPayload = responsesRequestToChatRequest(req.body);
+    } catch (e) {
+      return reply.code(422).send({ error: { message: (e as Error).message, type: "invalid_request_error" } });
+    }
+    if (chatPayload.stream) {
+      return reply.code(422).send({ error: { message: "streaming /v1/responses is not implemented; use /v1/chat/completions with stream=true", type: "unsupported_feature" } });
+    }
+
+    const chat = await app.inject({
+      method: "POST",
+      url: "/v1/chat/completions",
+      headers: internalForwardHeaders(req.headers),
+      payload: chatPayload,
+    });
+    reply.code(chat.statusCode);
+    for (const [key, value] of Object.entries(chat.headers)) {
+      if (value !== undefined) reply.header(key, value);
+    }
+    const chatBody = JSON.parse(chat.body) as {
+      id?: string;
+      model?: string;
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+      tokenops?: Record<string, unknown>;
+      error?: unknown;
+    };
+    if (chat.statusCode >= 400 || chatBody.error) return chatBody;
+    const normalized = normalizeOpenAIChatRequest(chatPayload);
+    const modelResponse = {
+      id: chatBody.id ?? `resp_${ulid()}`,
+      model: chatBody.model ?? chatPayload.model,
+      provider: typeof chatBody.tokenops?.provider === "string" ? chatBody.tokenops.provider : selectedProviderName(),
+      content: chatBody.choices?.[0]?.message?.content ?? "",
+      finish_reason: chatBody.choices?.[0]?.finish_reason ?? "stop",
+      input_tokens: chatBody.usage?.prompt_tokens ?? 0,
+      output_tokens: chatBody.usage?.completion_tokens ?? 0,
+      latency_ms: typeof chatBody.tokenops?.latency_ms === "number" ? chatBody.tokenops.latency_ms : 0,
+      cost_usd: typeof chatBody.tokenops?.cost_usd === "number" ? chatBody.tokenops.cost_usd : 0,
+    };
+    return {
+      ...toOpenAIResponse(normalized, modelResponse, `resp_${ulid()}`),
+      tokenops: chatBody.tokenops,
+    };
   });
 
   app.get("/stats", async () => {

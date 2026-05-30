@@ -46,11 +46,15 @@ Smoke test:
 curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
   -H 'content-type: application/json' \
   -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart"}]}'
+curl -sS -X POST http://127.0.0.1:8787/v1/responses \
+  -H 'content-type: application/json' \
+  -d '{"model":"llama-3.3-70b-versatile","input":"docs quickstart"}'
 ```
 
 Implemented endpoints:
 
 - `POST /v1/chat/completions`
+- `POST /v1/responses`
 - `GET /health`
 - `GET /stats`
 - `GET /traces`
@@ -278,7 +282,8 @@ TokenOps acts before compute is spent. It can serve cache, downgrade, block, ver
 
 Production-like:
 
-- OpenAI-compatible non-streaming chat completions endpoint
+- OpenAI-compatible chat completions endpoint with streaming chunk support
+- minimal OpenAI-compatible non-streaming Responses endpoint
 - deterministic normalizer and stable request hash
 - SQLite-backed exact cache with user/agent isolation
 - SQLite-backed semantic cache with safety classifier

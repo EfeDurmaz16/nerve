@@ -93,6 +93,27 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("serves minimal OpenAI-compatible responses", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/responses",
+        payload: { model: "gpt-5-mini", input: "Explain TokenOps response compatibility.", metadata: { agent_id: "agent_responses" } },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.object).toBe("response");
+      expect(body.output_text).toContain("Mock TokenOps response");
+      expect(body.output[0].type).toBe("message");
+      expect(body.usage.total_tokens).toBeGreaterThan(0);
+      expect(body.tokenops.trace_id).toBeTruthy();
+      const trace = (await app.inject({ method: "GET", url: `/traces/${body.tokenops.trace_id}` })).json();
+      expect(trace.agentId).toBe("agent_responses");
+      await app.close();
+    });
+  });
+
   it("returns a clear provider error when Groq key is missing", async () => {
     const old = process.env.TOKENOPS_PROVIDER;
     const oldGroqKey = process.env.GROQ_API_KEY;

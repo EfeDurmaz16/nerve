@@ -56,3 +56,41 @@ export function toOpenAIChatCompletionStream(response: ModelResponse): string {
   };
   return `data: ${JSON.stringify(chunk)}\n\ndata: ${JSON.stringify(done)}\n\ndata: [DONE]\n\n`;
 }
+
+export function toOpenAIResponse(request: NormalizedRequest, response: ModelResponse, id = `resp_${response.id}`) {
+  const created = Math.floor(Date.now() / 1000);
+  return {
+    id,
+    object: "response",
+    created_at: created,
+    status: response.finish_reason === "stop" ? "completed" : "incomplete",
+    model: response.model,
+    output: [
+      {
+        id: `msg_${response.id}`,
+        type: "message",
+        status: "completed",
+        role: "assistant",
+        content: [
+          {
+            type: "output_text",
+            text: response.content,
+          },
+        ],
+      },
+    ],
+    output_text: response.content,
+    usage: {
+      input_tokens: response.input_tokens,
+      output_tokens: response.output_tokens,
+      total_tokens: response.input_tokens + response.output_tokens,
+    },
+    tokenops: {
+      request_id: request.id,
+      provider: response.provider,
+      normalized_hash: request.normalized_hash,
+      cost_usd: response.cost_usd,
+      latency_ms: response.latency_ms,
+    },
+  };
+}

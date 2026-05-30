@@ -190,6 +190,8 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.gatewayCompatibility.object).toBe("chat.completion");
     expect(report.evidence.gatewayCompatibility.hasUsage).toBe(true);
     expect(report.evidence.gatewayCompatibility.hasTokenOpsMetadata).toBe(true);
+    expect(report.evidence.gatewayCompatibility.responsesObject).toBe("response");
+    expect(report.evidence.gatewayCompatibility.responsesHasOutputText).toBe(true);
     expect(report.passed.openAICompatibleGatewayShape).toBe(true);
     expect(report.evidence.traceLedger.storedTraceCount).toBe(2);
     expect(report.evidence.traceLedger.estimatedSavings).toBeGreaterThan(0);

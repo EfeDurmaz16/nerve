@@ -53,6 +53,9 @@ curl -sS http://127.0.0.1:8787/health
 curl -sS -X POST http://127.0.0.1:8787/v1/chat/completions \
   -H 'content-type: application/json' \
   -d '{"model":"llama-3.3-70b-versatile","messages":[{"role":"user","content":"docs quickstart"}]}'
+curl -sS -X POST http://127.0.0.1:8787/v1/responses \
+  -H 'content-type: application/json' \
+  -d '{"model":"llama-3.3-70b-versatile","input":"docs quickstart"}'
 ```
 
 Run benchmark:
