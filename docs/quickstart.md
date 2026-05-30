@@ -86,6 +86,7 @@ Export or import local TokenOps evidence:
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-benchmarks 100 --keep-idempotency 1000
 ```
 
 For local model infra, run an availability-aware Ollama throughput check:

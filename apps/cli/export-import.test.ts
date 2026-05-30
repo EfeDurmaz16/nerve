@@ -25,6 +25,21 @@ describe("tokenops snapshot CLI", () => {
     const stats = JSON.parse(execTokenOps(["stats"], targetDb)) as { tokenops_benchmark_results: number };
     expect(stats.tokenops_benchmark_results).toBeGreaterThan(0);
   });
+
+  it("prunes persisted TokenOps benchmark evidence from the CLI", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-prune-cli-"));
+    const db = join(dir, "tokenops.db");
+
+    execTokenOps(["replay", "benchmark/datasets/docs-qa.jsonl", "--persist"], db);
+    execTokenOps(["replay", "benchmark/datasets/support-faq.jsonl", "--persist"], db);
+    const before = JSON.parse(execTokenOps(["stats"], db)) as { tokenops_benchmark_results: number };
+    expect(before.tokenops_benchmark_results).toBe(2);
+
+    const pruned = JSON.parse(execTokenOps(["prune", "--keep-benchmarks", "1"], db)) as { benchmark_results: number };
+    expect(pruned.benchmark_results).toBe(1);
+    const after = JSON.parse(execTokenOps(["stats"], db)) as { tokenops_benchmark_results: number };
+    expect(after.tokenops_benchmark_results).toBe(1);
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {

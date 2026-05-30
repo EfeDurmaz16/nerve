@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult, insertTokenOpsTrace, listTokenOpsBenchmarkResults, listTokenOpsTraces, openDb } from "./src/index.js";
+import {
+  exportTokenOpsSnapshot,
+  getTokenOpsIdempotencyRecord,
+  importTokenOpsSnapshot,
+  insertTokenOpsBenchmarkResult,
+  insertTokenOpsIdempotencyRecord,
+  insertTokenOpsTrace,
+  listTokenOpsBenchmarkResults,
+  listTokenOpsTraces,
+  openDb,
+  pruneTokenOpsEvidence,
+} from "./src/index.js";
 import type { BenchmarkResult, RequestTrace } from "@tokenops/core";
 
 const trace = (id = "tr_export"): RequestTrace => ({
@@ -51,5 +62,41 @@ describe("TokenOps store snapshots", () => {
     expect(imported).toEqual({ traces: 1, benchmark_results: 1 });
     expect(listTokenOpsTraces(target, { limit: 10 })[0]!.id).toBe("tr_snapshot");
     expect(listTokenOpsBenchmarkResults(target, 10)[0]!.dataset).toBe("snapshot.jsonl");
+  });
+
+  it("prunes old TokenOps evidence while keeping the newest records", () => {
+    const db = openDb(":memory:");
+    insertTokenOpsTrace(db, trace("tr_old"));
+    insertTokenOpsTrace(db, trace("tr_new"));
+    insertTokenOpsBenchmarkResult(db, "bm_old", benchmark("old.jsonl"));
+    insertTokenOpsBenchmarkResult(db, "bm_new", benchmark("new.jsonl"));
+    insertTokenOpsIdempotencyRecord(db, {
+      route: "/v1/chat/completions",
+      key: "old-key",
+      request_hash: "old-hash",
+      status_code: 200,
+      response_body: { ok: true },
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+    insertTokenOpsIdempotencyRecord(db, {
+      route: "/v1/chat/completions",
+      key: "new-key",
+      request_hash: "new-hash",
+      status_code: 200,
+      response_body: { ok: true },
+      created_at: "2026-01-02T00:00:00.000Z",
+    });
+
+    const pruned = pruneTokenOpsEvidence(db, {
+      keepLatestTraces: 1,
+      keepLatestBenchmarkResults: 1,
+      keepLatestIdempotencyRecords: 1,
+    });
+
+    expect(pruned).toEqual({ traces: 1, benchmark_results: 1, idempotency_records: 1 });
+    expect(listTokenOpsTraces(db, { limit: 10 }).map((row) => row.id)).toEqual(["tr_new"]);
+    expect(listTokenOpsBenchmarkResults(db, 10).map((row) => row.dataset)).toEqual(["new.jsonl"]);
+    expect(getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", "old-key")).toBeNull();
+    expect(getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", "new-key")).toBeTruthy();
   });
 });

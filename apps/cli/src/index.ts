@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSy
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import kleur from "kleur";
-import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch, exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult } from "@nerve/store";
+import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch, exportTokenOpsSnapshot, importTokenOpsSnapshot, insertTokenOpsBenchmarkResult, pruneTokenOpsEvidence } from "@nerve/store";
 import { compileTask } from "@nerve/planner";
 import { mineAll } from "@nerve/miner";
 import { generateEvals, learn } from "@nerve/learner";
@@ -50,6 +50,7 @@ usage:
   tokenops replay --all                  run all benchmark datasets
   tokenops export <file>                 export local TokenOps traces and benchmark results
   tokenops import <file>                 import a TokenOps snapshot
+  tokenops prune                         prune local TokenOps evidence by retention counts
   tokenops load                          run local concurrent inference runtime benchmark
   tokenops batch                         run local micro-batching throughput benchmark
   tokenops failover                      run provider circuit-breaker/fallback benchmark
@@ -109,6 +110,7 @@ async function main() {
     if (cmd === "replay") return cmdTokenOpsReplay(argv.slice(1));
     if (cmd === "export") return cmdTokenOpsExport(argv.slice(1));
     if (cmd === "import") return cmdTokenOpsImport(argv.slice(1));
+    if (cmd === "prune") return cmdTokenOpsPrune(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
     if (cmd === "failover") return cmdTokenOpsFailover(argv.slice(1));
@@ -216,6 +218,16 @@ function cmdTokenOpsImport(args: string[]) {
   const snapshot = JSON.parse(readFileSync(resolve(file), "utf8")) as ReturnType<typeof exportTokenOpsSnapshot>;
   const imported = importTokenOpsSnapshot(db, snapshot);
   console.log(kleur.green(`✓ imported ${imported.traces} traces and ${imported.benchmark_results} benchmark results from ${resolve(file)}`));
+}
+
+function cmdTokenOpsPrune(args: string[]) {
+  const db = openDb(DB_PATH);
+  const result = pruneTokenOpsEvidence(db, {
+    keepLatestTraces: optionalNonNegativeInt(args, "--keep-traces"),
+    keepLatestBenchmarkResults: optionalNonNegativeInt(args, "--keep-benchmarks"),
+    keepLatestIdempotencyRecords: optionalNonNegativeInt(args, "--keep-idempotency"),
+  });
+  console.log(JSON.stringify(result, null, 2));
 }
 
 async function cmdTokenOpsLoad(args: string[]) {
@@ -546,6 +558,14 @@ function cmdDb() {
 function getOpt(args: string[], name: string): string | undefined {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;
+}
+
+function optionalNonNegativeInt(args: string[], name: string): number | undefined {
+  const value = getOpt(args, name);
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) die(`${name} must be a non-negative integer`);
+  return parsed;
 }
 
 function die(msg: string): never {

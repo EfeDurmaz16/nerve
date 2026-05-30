@@ -505,6 +505,51 @@ export function importTokenOpsSnapshot(db: DB, snapshot: TokenOpsSnapshot): { tr
   return { traces: snapshot.traces.length, benchmark_results: benchmarkCount };
 }
 
+export interface TokenOpsPruneOptions {
+  keepLatestTraces?: number;
+  keepLatestBenchmarkResults?: number;
+  keepLatestIdempotencyRecords?: number;
+}
+
+export function pruneTokenOpsEvidence(db: DB, opts: TokenOpsPruneOptions): { traces: number; benchmark_results: number; idempotency_records: number } {
+  return {
+    traces: pruneKeepLatest(db, "tokenops_request_traces", "id", "timestamp", opts.keepLatestTraces),
+    benchmark_results: pruneKeepLatest(db, "tokenops_benchmark_results", "id", "created_at", opts.keepLatestBenchmarkResults),
+    idempotency_records: pruneKeepLatestComposite(
+      db,
+      "tokenops_idempotency_records",
+      ["route", "key"],
+      "created_at",
+      opts.keepLatestIdempotencyRecords,
+    ),
+  };
+}
+
+function pruneKeepLatest(db: DB, table: string, idColumn: string, orderColumn: string, keepLatest?: number): number {
+  if (keepLatest === undefined) return 0;
+  if (!Number.isInteger(keepLatest) || keepLatest < 0) throw new Error("keepLatest must be a non-negative integer");
+  const result = db.prepare(
+    `DELETE FROM ${table}
+     WHERE ${idColumn} NOT IN (
+       SELECT ${idColumn} FROM ${table} ORDER BY ${orderColumn} DESC, rowid DESC LIMIT ?
+     )`,
+  ).run(keepLatest);
+  return Number(result.changes);
+}
+
+function pruneKeepLatestComposite(db: DB, table: string, keyColumns: string[], orderColumn: string, keepLatest?: number): number {
+  if (keepLatest === undefined) return 0;
+  if (!Number.isInteger(keepLatest) || keepLatest < 0) throw new Error("keepLatest must be a non-negative integer");
+  const keyExpr = keyColumns.join(" || char(31) || ");
+  const result = db.prepare(
+    `DELETE FROM ${table}
+     WHERE ${keyExpr} NOT IN (
+       SELECT ${keyExpr} FROM ${table} ORDER BY ${orderColumn} DESC, rowid DESC LIMIT ?
+     )`,
+  ).run(keepLatest);
+  return Number(result.changes);
+}
+
 // ---------- TokenOps idempotency records ----------
 export interface TokenOpsIdempotencyRecord<T = unknown> {
   route: string;
