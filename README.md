@@ -105,6 +105,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay benchmark/datasets/docs-qa.j
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts export ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts import ./tokenops-snapshot.json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile ./provider-usage.jsonl
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts traces export --format otel --out ./tokenops-spans.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-benchmarks 100 --keep-idempotency 1000
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
@@ -139,6 +140,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops export <file>`
 - `tokenops import <file>`
 - `tokenops reconcile <provider-usage.jsonl>`
+- `tokenops traces export --format otel [--out file]`
 - `tokenops prune --keep-traces <n> --keep-benchmarks <n> --keep-idempotency <n>`
 - `tokenops load`
 - `tokenops batch`
@@ -317,6 +319,7 @@ Production-like:
 - SQLite-backed idempotency records for retry-safe non-streaming chat completions
 - snapshot import/export for TokenOps traces and benchmark results
 - provider usage JSONL reconciliation against the trace ledger
+- OpenTelemetry-style JSONL trace export
 - retention pruning for local TokenOps traces, benchmark results, and idempotency records
 - benchmark datasets and replay runner
 - mock provider
@@ -360,7 +363,7 @@ Roadmap:
 - provider-backed or production embedding models for semantic cache
 - redaction policy hooks
 - larger eval-backed cache safety corpus
-- OTel/Langfuse export
+- direct Langfuse export adapter
 - signed receipts via FIDES-style evidence chain
 
 ---

@@ -99,6 +99,14 @@ JSONL
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts reconcile ./provider-usage.jsonl
 ```
 
+Export traces to an OpenTelemetry-style JSONL file for downstream observability tools:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts traces export \
+  --format otel \
+  --out ./tokenops-spans.jsonl
+```
+
 For local model infra, run an availability-aware Ollama throughput check:
 
 ```bash

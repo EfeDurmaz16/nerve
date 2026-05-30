@@ -87,6 +87,22 @@ describe("tokenops snapshot CLI", () => {
     expect(report.drifted).toBe(1);
     expect(report.deltaUsd).toBeCloseTo(0.000972);
   });
+
+  it("exports local TokenOps traces as OpenTelemetry JSONL", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-otel-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const outPath = join(dir, "spans.jsonl");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("tr_otel_cli", 0.000028));
+
+    execTokenOps(["traces", "export", "--format", "otel", "--out", outPath], dbPath);
+    const lines = readFileSync(outPath, "utf8").trim().split(/\r?\n/);
+    const span = JSON.parse(lines[0]!) as { name: string; traceId: string; attributes: Record<string, unknown> };
+
+    expect(span.name).toBe("tokenops.inference");
+    expect(span.traceId).toBe("tr_otel_cli");
+    expect(span.attributes["tokenops.cost.optimized_usd"]).toBe(0.000028);
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {

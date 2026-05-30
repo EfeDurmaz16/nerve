@@ -6,3 +6,4 @@ export * from "./analyzer.js";
 export * from "./replay-store.js";
 export * from "./reconciliation.js";
 export * from "./provider-health.js";
+export * from "./otel-exporter.js";

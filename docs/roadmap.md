@@ -114,7 +114,7 @@ The 1-year target is a production adaptive inference control plane for serious a
 - Tamper-evident trace ledger.
 - Signed receipts for cache hits, policy decisions, provider calls, verifier runs, and budget blocks.
 - OAPS-compatible schemas for requests, policies, traces, evidence, and replay results.
-- Export to OpenTelemetry, Langfuse, LangSmith, Braintrust, and warehouse sinks.
+- OpenTelemetry-style JSONL export is implemented; direct Langfuse, LangSmith, Braintrust, and warehouse sinks remain future work.
 
 ### Agent Runtime Integration
 

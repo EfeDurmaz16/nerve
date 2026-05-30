@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestTrace } from "@tokenops/core";
-import { analyzeTraces, gatewayStats, providerHealthReport, reconcileModelResponseCost, reconcileProviderUsage, SqliteTraceStore, TraceStore } from "./src/index.js";
+import { analyzeTraces, exportTracesAsOtelSpans, gatewayStats, providerHealthReport, reconcileModelResponseCost, reconcileProviderUsage, SqliteTraceStore, TraceStore } from "./src/index.js";
 import { openDb } from "@nerve/store";
 
 const trace = (over: Partial<RequestTrace> = {}): RequestTrace => ({
@@ -108,5 +108,25 @@ describe("TokenOps ledger", () => {
     expect(report.providers.groq.verifierPassRate).toBe(0.5);
     expect(report.providers.mock.p95LatencyMs).toBe(12);
     expect(report.providers.mock.healthScore).toBeGreaterThan(report.providers.groq.healthScore);
+  });
+
+  it("exports TokenOps traces as OpenTelemetry-style spans", () => {
+    const spans = exportTracesAsOtelSpans([
+      trace({
+        id: "tr_otel",
+        selectedProvider: "groq",
+        selectedModel: "llama-3.3-70b-versatile",
+        providerLatencyMs: 123,
+        routing: { selectedProvider: "groq", selectedModel: "llama-3.3-70b-versatile", downgraded: false, escalated: false, reason: "Bearer secret-token" },
+      }),
+    ]);
+
+    expect(spans[0]?.name).toBe("tokenops.inference");
+    expect(spans[0]?.traceId).toBe("tr_otel");
+    expect(spans[0]?.attributes["tokenops.provider"]).toBe("groq");
+    expect(spans[0]?.attributes["tokenops.model"]).toBe("llama-3.3-70b-versatile");
+    expect(spans[0]?.attributes["tokenops.cache.exact_hit"]).toBe(false);
+    expect(spans[0]?.attributes["tokenops.cost.estimated_savings_usd"]).toBe(0.8);
+    expect(JSON.stringify(spans[0])).not.toContain("secret-token");
   });
 });

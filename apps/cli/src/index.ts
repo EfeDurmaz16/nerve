@@ -26,7 +26,7 @@ import {
   runSemanticCacheSafetyBenchmark,
 } from "@tokenops/benchmark";
 import type { BudgetPolicy, ModelResponse, NormalizedRequest } from "@tokenops/core";
-import { providerHealthReport, reconcileProviderUsage, SqliteTraceStore, type ProviderUsageRecord } from "@tokenops/ledger";
+import { formatOtelSpansJsonl, providerHealthReport, reconcileProviderUsage, SqliteTraceStore, type ProviderUsageRecord, exportTracesAsOtelSpans } from "@tokenops/ledger";
 import { simulateBudgetPolicy } from "@tokenops/policy";
 import type { ModelProvider } from "@tokenops/providers";
 import { learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
@@ -61,6 +61,7 @@ usage:
   tokenops doctor                        inspect local setup, git hygiene, providers, and proof status
   tokenops stats                         show local DB stats
   tokenops trace <id>                    show trace lookup instructions
+  tokenops traces export --format otel   export traces as OpenTelemetry-style JSONL
   tokenops cache stats                   show cache stats endpoint hint
   tokenops cache clear                   show cache clear endpoint hint
   tokenops cache eval [dataset]          run adversarial semantic-cache safety eval
@@ -125,6 +126,7 @@ async function main() {
     if (cmd === "demo") return cmdTokenOpsDemo();
     if (cmd === "stats") return cmdDb();
     if (cmd === "trace") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/traces/${argv[1] ?? "<id>"}`);
+    if (cmd === "traces" && argv[1] === "export") return cmdTokenOpsTracesExport(argv.slice(2));
     if (cmd === "cache" && argv[1] === "stats") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/cache/stats`);
     if (cmd === "cache" && argv[1] === "clear") return console.log(`POST http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/cache/clear`);
     if (cmd === "cache" && argv[1] === "eval") return cmdTokenOpsCacheEval(argv.slice(2));
@@ -236,6 +238,21 @@ function cmdTokenOpsReconcile(args: string[]) {
     toleranceUsd: Number(getOpt(args, "--tolerance-usd") ?? 0.000001),
   });
   console.log(JSON.stringify(report, null, 2));
+}
+
+function cmdTokenOpsTracesExport(args: string[]) {
+  const format = getOpt(args, "--format") ?? "otel";
+  if (format !== "otel") return die("usage: tokenops traces export --format otel [--out file]");
+  const db = openDb(DB_PATH);
+  const store = new SqliteTraceStore(db);
+  const output = formatOtelSpansJsonl(exportTracesAsOtelSpans(store.list(Number(getOpt(args, "--limit") ?? 100_000))));
+  const out = getOpt(args, "--out");
+  if (out) {
+    writeFileSync(resolve(out), output);
+    console.log(kleur.green(`✓ exported OpenTelemetry JSONL spans to ${resolve(out)}`));
+    return;
+  }
+  process.stdout.write(output);
 }
 
 function cmdTokenOpsPrune(args: string[]) {
