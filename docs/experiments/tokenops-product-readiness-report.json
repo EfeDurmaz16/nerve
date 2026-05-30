@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T18:58:24.764Z",
+  "generatedAt": "2026-05-30T19:01:34.135Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 15,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 28800,
+    "mockOutputTokensPerSecond": 36000,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 29,
+      "wallTimeMs": 31,
       "providerCalls": 15,
       "coalescedResponses": 15,
       "avoidedProviderCalls": 15,
-      "p50LatencyMs": 9,
-      "p95LatencyMs": 10,
+      "p50LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 19,
-      "estimatedLatencyReduction": 0.928,
+      "batchedWallTimeMs": 17,
+      "estimatedLatencyReduction": 0.9356,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -215,8 +215,8 @@
       "circuitRejectedRequests": 6,
       "fallbackRecoveries": 8,
       "circuitOpened": true,
-      "p50LatencyMs": 2,
-      "p95LatencyMs": 3,
+      "p50LatencyMs": 1,
+      "p95LatencyMs": 2,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 1,
@@ -236,7 +236,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780167564133,
+            "openedUntil": 1780167753576,
             "halfOpenInFlight": 0
           }
         }
@@ -248,15 +248,15 @@
       "skipped": false,
       "requests": 12,
       "concurrency": 4,
-      "wallTimeMs": 10,
+      "wallTimeMs": 8,
       "providerCalls": 12,
       "totalInputTokens": 480,
       "totalOutputTokens": 288,
       "totalTokens": 768,
-      "outputTokensPerSecond": 28800,
-      "totalTokensPerSecond": 76800,
+      "outputTokensPerSecond": 36000,
+      "totalTokensPerSecond": 96000,
       "p50LatencyMs": 3,
-      "p95LatencyMs": 4,
+      "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -315,7 +315,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T18:58:24.715Z",
+        "generatedAt": "2026-05-30T19:01:34.108Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -369,6 +369,28 @@
       ],
       "content": "Mock TokenOps response for docs_qa: fallback proof",
       "reason": "primary provider failed; fallback provider returned a usable model response"
+    },
+    "providerArbitrage": {
+      "originalProvider": "openai",
+      "selectedProvider": "groq",
+      "candidates": [
+        "openai",
+        "groq",
+        "mock"
+      ],
+      "originalAverageCostUsd": 0.04,
+      "selectedAverageCostUsd": 0.01,
+      "selectedP95LatencyMs": 320,
+      "selectedHealthScore": 0.84,
+      "route": {
+        "selectedProvider": "groq",
+        "selectedModel": "gpt-5-mini",
+        "originalRequestedModel": "gpt-5.5",
+        "downgraded": true,
+        "escalated": false,
+        "reason": "baseline provider before trace-derived arbitrage; provider arbitrage selected groq avg_cost=0.01 p95=320ms health=0.84"
+      },
+      "reason": "baseline provider before trace-derived arbitrage; provider arbitrage selected groq avg_cost=0.01 p95=320ms health=0.84"
     },
     "verifierGate": {
       "passCase": {
@@ -1383,7 +1405,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
+        "requestId": "req_01KSX46NSP9TXYMP3XZP4KRETK",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1409,7 +1431,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
+        "requestId": "req_01KSX46NSP9TXYMP3XZP4KRETK",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1438,7 +1460,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
+        "requestId": "req_01KSX46NSP9TXYMP3XZP4KRETK",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1466,7 +1488,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
+        "requestId": "req_01KSX46NSP9TXYMP3XZP4KRETK",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1503,15 +1525,15 @@
       "skipped": false,
       "requests": 4,
       "concurrency": 2,
-      "wallTimeMs": 555,
+      "wallTimeMs": 513,
       "providerCalls": 4,
       "totalInputTokens": 240,
-      "totalOutputTokens": 110,
-      "totalTokens": 350,
-      "outputTokensPerSecond": 198.2,
-      "totalTokensPerSecond": 630.63,
-      "p50LatencyMs": 274,
-      "p95LatencyMs": 377,
+      "totalOutputTokens": 106,
+      "totalTokens": 346,
+      "outputTokensPerSecond": 206.63,
+      "totalTokensPerSecond": 674.46,
+      "p50LatencyMs": 283,
+      "p95LatencyMs": 305,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -1550,6 +1572,7 @@
     "adaptiveRoutingDowngradesFromTraceEvidence": true,
     "providerSloRoutingAvoidsUnhealthyProviders": true,
     "providerFallbackSurvivesPrimaryFailure": true,
+    "providerArbitrageChoosesCheapestHealthyProvider": true,
     "verifierGateEscalatesFailedCheapAnswer": true,
     "verifierRoutingEvalPasses": true,
     "policyControlsBlockWastefulCompute": true,

@@ -188,6 +188,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.providerFallback.selectedProvider).toBe("mock");
     expect(report.evidence.providerFallback.failedProviders).toEqual(["groq"]);
     expect(report.passed.providerFallbackSurvivesPrimaryFailure).toBe(true);
+    expect(report.evidence.providerArbitrage.originalProvider).toBe("openai");
+    expect(report.evidence.providerArbitrage.selectedProvider).toBe("groq");
+    expect(report.evidence.providerArbitrage.selectedAverageCostUsd).toBeLessThan(report.evidence.providerArbitrage.originalAverageCostUsd);
+    expect(report.passed.providerArbitrageChoosesCheapestHealthyProvider).toBe(true);
     expect(report.evidence.verifierGate.passCase.escalatedAfterFail).toBe(false);
     expect(report.evidence.verifierGate.failCase.escalatedAfterFail).toBe(true);
     expect(report.evidence.verifierGate.failCase.finalProvider).toBe("strong");

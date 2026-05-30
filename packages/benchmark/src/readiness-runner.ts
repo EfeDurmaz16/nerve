@@ -3,11 +3,11 @@ import type { BenchmarkResult, ComputePlan, ModelResponse, NormalizedRequest } f
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { toOpenAIChatCompletion, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
-import { analyzeTraces, gatewayStats, reconcileProviderUsage, TraceStore, type CheaperInsight, type ProviderUsageReconciliationReport } from "@tokenops/ledger";
+import { analyzeTraces, gatewayStats, providerHealthReport, reconcileProviderUsage, TraceStore, type CheaperInsight, type ProviderUsageReconciliationReport } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
-import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
+import { applyLearnedRouting, applyProviderArbitrage, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
 import { cheapThenVerify } from "@tokenops/verifier";
 import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
@@ -50,6 +50,7 @@ export interface ReadinessBenchmarkReport {
     adaptiveRouting: AdaptiveRoutingProof;
     providerSlo: ProviderSloBenchmarkResult;
     providerFallback: ProviderFallbackProof;
+    providerArbitrage: ProviderArbitrageProof;
     verifierGate: VerifierGateProof;
     verifierRouting: CheapThenVerifyBenchmarkResult;
     policyControls: PolicyControlsProof;
@@ -81,6 +82,18 @@ export interface ProviderFallbackProof {
   failedProviders: string[];
   attempts: Array<{ provider: string; ok: boolean }>;
   content: string;
+  reason: string;
+}
+
+export interface ProviderArbitrageProof {
+  originalProvider: string;
+  selectedProvider: string;
+  candidates: string[];
+  originalAverageCostUsd: number;
+  selectedAverageCostUsd: number;
+  selectedP95LatencyMs: number;
+  selectedHealthScore: number;
+  route: ModelRoute;
   reason: string;
 }
 
@@ -196,6 +209,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const adaptiveRouting = buildAdaptiveRoutingProof();
   const providerSlo = runProviderSloBenchmark();
   const providerFallback = await buildProviderFallbackProof();
+  const providerArbitrage = buildProviderArbitrageProof();
   const verifierGate = await buildVerifierGateProof();
   const verifierRouting = await runCheapThenVerifyBenchmark("benchmark/evals/cheap-then-verify.jsonl");
   const policyControls = buildPolicyControlsProof();
@@ -226,6 +240,11 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
     providerSloRoutingAvoidsUnhealthyProviders: providerSlo.passed && providerSlo.rerouted && providerSlo.selectedProvider === "mock",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
+    providerArbitrageChoosesCheapestHealthyProvider:
+      providerArbitrage.originalProvider !== providerArbitrage.selectedProvider &&
+      providerArbitrage.selectedProvider === "groq" &&
+      providerArbitrage.selectedAverageCostUsd < providerArbitrage.originalAverageCostUsd &&
+      providerArbitrage.selectedHealthScore >= 0.8,
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     verifierRoutingEvalPasses: verifierRouting.passed && verifierRouting.expectedEscalations > 0 && verifierRouting.missedEscalations === 0,
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
@@ -279,6 +298,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       adaptiveRouting,
       providerSlo,
       providerFallback,
+      providerArbitrage,
       verifierGate,
       verifierRouting,
       policyControls,
@@ -325,6 +345,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
     `- Provider SLO routing: ${report.evidence.providerSlo.originalProvider} -> ${report.evidence.providerSlo.selectedProvider}, p95=${report.evidence.providerSlo.unhealthyProviderP95LatencyMs}ms`,
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
+    `- Provider arbitrage route: ${report.evidence.providerArbitrage.originalProvider} -> ${report.evidence.providerArbitrage.selectedProvider}, avg_cost=$${report.evidence.providerArbitrage.selectedAverageCostUsd}, health=${report.evidence.providerArbitrage.selectedHealthScore}`,
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     `- Verifier routing eval: ${report.evidence.verifierRouting.actualEscalations}/${report.evidence.verifierRouting.expectedEscalations} expected escalations, missed=${report.evidence.verifierRouting.missedEscalations}`,
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
@@ -695,6 +716,45 @@ class FailingProvider implements ModelProvider {
   }
 }
 
+function buildProviderArbitrageProof(): ProviderArbitrageProof {
+  const candidates = ["openai", "groq", "mock"];
+  const traces: RequestTrace[] = [
+    providerTrace("openai_1", "openai", 0.04, 650),
+    providerTrace("openai_2", "openai", 0.04, 700),
+    providerTrace("groq_1", "groq", 0.01, 300),
+    providerTrace("groq_2", "groq", 0.01, 320),
+    providerTrace("mock_unhealthy_1", "mock", 0, 25, false),
+    providerTrace("mock_unhealthy_2", "mock", 0, 30, false),
+  ];
+  const health = providerHealthReport(traces);
+  const baseRoute: ModelRoute = {
+    selectedProvider: "openai",
+    selectedModel: "gpt-5-mini",
+    originalRequestedModel: "gpt-5.5",
+    downgraded: true,
+    escalated: false,
+    reason: "baseline provider before trace-derived arbitrage",
+  };
+  const route = applyProviderArbitrage(baseRoute, health, {
+    candidates,
+    minHealthScore: 0.8,
+    maxP95LatencyMs: 1_000,
+  });
+  const original = health.providers[baseRoute.selectedProvider];
+  const selected = health.providers[route.selectedProvider];
+  return {
+    originalProvider: baseRoute.selectedProvider,
+    selectedProvider: route.selectedProvider,
+    candidates,
+    originalAverageCostUsd: roundMoney(original?.averageOptimizedCostUsd ?? 0),
+    selectedAverageCostUsd: roundMoney(selected?.averageOptimizedCostUsd ?? 0),
+    selectedP95LatencyMs: selected?.p95LatencyMs ?? 0,
+    selectedHealthScore: selected?.healthScore ?? 0,
+    route,
+    reason: route.reason,
+  };
+}
+
 function buildAdaptiveRoutingProof(): AdaptiveRoutingProof {
   const traces = [
     routingTrace("route_1", 0.0002, "gpt-5-mini"),
@@ -719,6 +779,30 @@ function buildAdaptiveRoutingProof(): AdaptiveRoutingProof {
     learnedRoute,
     estimatedAvoidedCostUsd: roundMoney(0.01 - 0.0002),
     reason: learnedRoute.reason,
+  };
+}
+
+function providerTrace(
+  id: string,
+  provider: string,
+  optimizedCost: number,
+  latencyMs: number,
+  verifierPassed = true,
+): RequestTrace {
+  return {
+    ...routingTrace(id, optimizedCost, "gpt-5-mini"),
+    selectedProvider: provider,
+    outputTokensEstimated: 16,
+    providerLatencyMs: latencyMs,
+    routing: {
+      selectedProvider: provider,
+      selectedModel: "gpt-5-mini",
+      originalRequestedModel: "gpt-5.5",
+      downgraded: true,
+      escalated: false,
+      reason: "provider arbitrage fixture",
+    },
+    quality: { verifierUsed: true, verifierPassed },
   };
 }
 
