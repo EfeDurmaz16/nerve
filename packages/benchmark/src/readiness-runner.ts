@@ -1,6 +1,7 @@
 import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
+import { analyzeTraces, type CheaperInsight } from "@tokenops/ledger";
 import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { classifyCacheability } from "@tokenops/profiler";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
@@ -44,6 +45,7 @@ export interface ReadinessBenchmarkReport {
     verifierGate: VerifierGateProof;
     policyControls: PolicyControlsProof;
     cacheSafety: CacheSafetyProof;
+    cheaperAnalyzer: CheaperAnalyzerProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -98,6 +100,14 @@ export interface CacheSafetyProof {
   reason: string;
 }
 
+export interface CheaperAnalyzerProof {
+  insightCount: number;
+  kinds: CheaperInsight["kind"][];
+  estimatedAvoidableCostUsd: number;
+  messages: string[];
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -132,6 +142,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const verifierGate = await buildVerifierGateProof();
   const policyControls = buildPolicyControlsProof();
   const cacheSafety = buildCacheSafetyProof();
+  const cheaperAnalyzer = buildCheaperAnalyzerProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -148,6 +159,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     semanticCacheSafetyBlocksRiskyPrivateWorkloads: cacheSafety.safeDocsCacheability === "semantic_safe" && cacheSafety.riskyPrivateCacheability === "never_cache",
+    cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -175,6 +187,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       verifierGate,
       policyControls,
       cacheSafety,
+      cheaperAnalyzer,
       groqThroughput,
     },
     passed,
@@ -211,6 +224,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     `- Cache safety: docs ${report.evidence.cacheSafety.safeDocsCacheability}, risky ${report.evidence.cacheSafety.riskyPrivateCacheability}`,
+    `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     "",
     "## Gates",
     "",
@@ -221,6 +235,26 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildCheaperAnalyzerProof(): CheaperAnalyzerProof {
+  const insights = analyzeTraces([
+    {
+      ...routingTrace("analyze_overkill_prefix", 0.002, "gpt-5-mini"),
+      requestedModel: "gpt-5.5",
+      cache: { exactHit: false, semanticHit: false, toolResultHit: false, contextBlockHit: false, prefixCacheEligibleTokens: 2400 },
+      cost: { estimatedBaselineCost: 0.02, estimatedOptimizedCost: 0.002, estimatedSavings: 0.018 },
+      finalResponseSource: "model",
+    },
+  ]);
+  const kinds = [...new Set(insights.map((insight) => insight.kind))];
+  return {
+    insightCount: insights.length,
+    kinds,
+    estimatedAvoidableCostUsd: roundMoney(insights.reduce((total, insight) => total + insight.estimatedAvoidableCostUsd, 0)),
+    messages: insights.map((insight) => insight.message),
+    reason: "post-run analyzer finds overpowered model use, prefix-cache opportunity, and uncached model-call waste",
+  };
 }
 
 function buildCacheSafetyProof(): CacheSafetyProof {

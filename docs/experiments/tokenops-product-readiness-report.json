@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:26:18.715Z",
+  "generatedAt": "2026-05-30T15:29:09.666Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -8,7 +8,7 @@
     "optimizedCostUsd": 0.00569,
     "estimatedReplayCostReductionPct": 95.5,
     "runtimeAvoidedProviderCalls": 4,
-    "batchingLatencyReductionPct": 0.8,
+    "batchingLatencyReductionPct": 0.9,
     "mockOutputTokensPerSecond": 20571.43,
     "groqLiveMeasured": false
   },
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 132,
-      "batchedWallTimeMs": 20,
-      "estimatedLatencyReduction": 0.8485,
+      "batchedWallTimeMs": 19,
+      "estimatedLatencyReduction": 0.8561,
       "batches": 2,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -218,7 +218,7 @@
       "outputTokensPerSecond": 20571.43,
       "totalTokensPerSecond": 54857.14,
       "p50LatencyMs": 3,
-      "p95LatencyMs": 4,
+      "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -321,6 +321,21 @@
       "safePrompt": "What does the documentation say about the quickstart and cache setup?",
       "riskyPrompt": "Use this private secret token to wire a payment from my account.",
       "reason": "semantic cache is allowed for safe documentation Q&A and blocked for private/payment/secret workloads"
+    },
+    "cheaperAnalyzer": {
+      "insightCount": 3,
+      "kinds": [
+        "overkill_model",
+        "prefix_cache",
+        "cache_opportunity"
+      ],
+      "estimatedAvoidableCostUsd": 0.0244,
+      "messages": [
+        "This request used gpt-5.5. It likely could have used gpt-5-mini.",
+        "Stable prefix was 2400 tokens. Provider prefix caching could reduce input cost.",
+        "This model call was not served from cache; check exact, semantic, tool-result, or context-block reuse opportunities."
+      ],
+      "reason": "post-run analyzer finds overpowered model use, prefix-cache opportunity, and uncached model-call waste"
     }
   },
   "passed": {
@@ -335,6 +350,7 @@
     "verifierGateEscalatesFailedCheapAnswer": true,
     "policyControlsBlockWastefulCompute": true,
     "semanticCacheSafetyBlocksRiskyPrivateWorkloads": true,
+    "cheaperAnalyzerFindsAvoidableCompute": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [

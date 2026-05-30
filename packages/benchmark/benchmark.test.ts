@@ -121,6 +121,10 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.cacheSafety.safeDocsCacheability).toBe("semantic_safe");
     expect(report.evidence.cacheSafety.riskyPrivateCacheability).toBe("never_cache");
     expect(report.passed.semanticCacheSafetyBlocksRiskyPrivateWorkloads).toBe(true);
+    expect(report.evidence.cheaperAnalyzer.insightCount).toBeGreaterThanOrEqual(2);
+    expect(report.evidence.cheaperAnalyzer.kinds).toContain("overkill_model");
+    expect(report.evidence.cheaperAnalyzer.kinds).toContain("prefix_cache");
+    expect(report.passed.cheaperAnalyzerFindsAvoidableCompute).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });
