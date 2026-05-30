@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:16:39.367Z
+Generated: 2026-05-30T15:18:43.398Z
 
 ## Summary
 
@@ -16,6 +16,7 @@ Generated: 2026-05-30T15:16:39.367Z
 - Groq live measured: false
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
+- Provider fallback route: groq -> mock
 
 ## Gates
 
@@ -26,6 +27,7 @@ Generated: 2026-05-30T15:16:39.367Z
 - microBatchingReducesLatency: true
 - mockThroughputMeasured: true
 - adaptiveRoutingDowngradesFromTraceEvidence: true
+- providerFallbackSurvivesPrimaryFailure: true
 - groqThroughputAvailableWhenRequested: true
 
 ## Gaps

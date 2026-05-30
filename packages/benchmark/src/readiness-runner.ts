@@ -1,5 +1,7 @@
-import type { BenchmarkResult } from "@tokenops/core";
+import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
+import { normalizeChatCompletionRequest } from "@tokenops/core";
+import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
 import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
 import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
@@ -35,6 +37,7 @@ export interface ReadinessBenchmarkReport {
     microBatching: BatchBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
+    providerFallback: ProviderFallbackProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -47,6 +50,14 @@ export interface AdaptiveRoutingProof {
   baseRoute: ModelRoute;
   learnedRoute: ModelRoute;
   estimatedAvoidedCostUsd: number;
+  reason: string;
+}
+
+export interface ProviderFallbackProof {
+  selectedProvider: string;
+  failedProviders: string[];
+  attempts: Array<{ provider: string; ok: boolean }>;
+  content: string;
   reason: string;
 }
 
@@ -80,6 +91,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     })
     : undefined;
   const adaptiveRouting = buildAdaptiveRoutingProof();
+  const providerFallback = await buildProviderFallbackProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -92,6 +104,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     microBatchingReducesLatency: microBatching.estimatedLatencyReduction > 0,
     mockThroughputMeasured: !mockThroughput.skipped && mockThroughput.outputTokensPerSecond > 0,
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
+    providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -115,6 +128,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       microBatching,
       mockThroughput,
       adaptiveRouting,
+      providerFallback,
       groqThroughput,
     },
     passed,
@@ -147,6 +161,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Groq live measured: ${report.summary.groqLiveMeasured}`,
     `- Adaptive routing route: ${report.evidence.adaptiveRouting.baseRoute.selectedModel} -> ${report.evidence.adaptiveRouting.learnedRoute.selectedModel}`,
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
+    `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
     "",
     "## Gates",
     "",
@@ -157,6 +172,33 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+async function buildProviderFallbackProof(): Promise<ProviderFallbackProof> {
+  const provider = new FallbackProvider([
+    new FailingProvider("groq"),
+    new MockProvider(),
+  ]);
+  const request = normalizeChatCompletionRequest({
+    model: "gpt-5-mini",
+    messages: [{ role: "user", content: "fallback proof" }],
+  }, { provider: "fallback", workloadType: "docs_qa", riskLevel: "low" });
+  const response = await provider.complete(request);
+  const fallback = (response.raw as { tokenops?: { fallback?: { selectedProvider?: string; failedProviders?: string[]; attempts?: Array<{ provider: string; ok: boolean }> } } } | undefined)?.tokenops?.fallback;
+  return {
+    selectedProvider: fallback?.selectedProvider ?? response.provider,
+    failedProviders: fallback?.failedProviders ?? [],
+    attempts: fallback?.attempts ?? [],
+    content: response.content,
+    reason: "primary provider failed; fallback provider returned a usable model response",
+  };
+}
+
+class FailingProvider implements ModelProvider {
+  constructor(readonly name: string) {}
+  async complete(_request: NormalizedRequest): Promise<ModelResponse> {
+    throw new Error(`${this.name} unavailable for readiness proof`);
+  }
 }
 
 function buildAdaptiveRoutingProof(): AdaptiveRoutingProof {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:16:39.367Z",
+  "generatedAt": "2026-05-30T15:18:43.398Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -152,12 +152,12 @@
       "concurrency": 6,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 22,
+      "wallTimeMs": 20,
       "providerCalls": 8,
       "coalescedResponses": 4,
       "avoidedProviderCalls": 4,
-      "p50LatencyMs": 10,
-      "p95LatencyMs": 11,
+      "p50LatencyMs": 9,
+      "p95LatencyMs": 10,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 6,
@@ -266,6 +266,25 @@
       },
       "estimatedAvoidedCostUsd": 0.0098,
       "reason": "learned routing policy: learned from 3 traces; avg_cost=0.0002 avg_savings=0.0098 verifier_pass_rate=1"
+    },
+    "providerFallback": {
+      "selectedProvider": "mock",
+      "failedProviders": [
+        "groq"
+      ],
+      "attempts": [
+        {
+          "provider": "groq",
+          "ok": false,
+          "error": "groq unavailable for readiness proof"
+        },
+        {
+          "provider": "mock",
+          "ok": true
+        }
+      ],
+      "content": "Mock TokenOps response for docs_qa: fallback proof",
+      "reason": "primary provider failed; fallback provider returned a usable model response"
     }
   },
   "passed": {
@@ -276,6 +295,7 @@
     "microBatchingReducesLatency": true,
     "mockThroughputMeasured": true,
     "adaptiveRoutingDowngradesFromTraceEvidence": true,
+    "providerFallbackSurvivesPrimaryFailure": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [
