@@ -105,6 +105,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.runtimeCoalescing.avoidedProviderCalls).toBeGreaterThan(0);
     expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
     expect(report.evidence.mockThroughput.outputTokensPerSecond).toBeGreaterThan(0);
+    expect(report.evidence.adaptiveRouting.baseRoute.selectedModel).toBe("gpt-5.5");
+    expect(report.evidence.adaptiveRouting.learnedRoute.selectedModel).toBe("gpt-5-mini");
+    expect(report.passed.adaptiveRoutingDowngradesFromTraceEvidence).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });

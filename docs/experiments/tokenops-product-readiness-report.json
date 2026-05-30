@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:10:45.742Z",
+  "generatedAt": "2026-05-30T15:16:39.367Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -152,12 +152,12 @@
       "concurrency": 6,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 19,
+      "wallTimeMs": 22,
       "providerCalls": 8,
       "coalescedResponses": 4,
       "avoidedProviderCalls": 4,
-      "p50LatencyMs": 9,
-      "p95LatencyMs": 9,
+      "p50LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 6,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 132,
-      "batchedWallTimeMs": 17,
-      "estimatedLatencyReduction": 0.8712,
+      "batchedWallTimeMs": 18,
+      "estimatedLatencyReduction": 0.8636,
       "batches": 2,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -217,7 +217,7 @@
       "totalTokens": 384,
       "outputTokensPerSecond": 24000,
       "totalTokensPerSecond": 64000,
-      "p50LatencyMs": 2,
+      "p50LatencyMs": 3,
       "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
@@ -244,6 +244,28 @@
           }
         }
       }
+    },
+    "adaptiveRouting": {
+      "historicalTraceCount": 4,
+      "learnedRules": 1,
+      "baseRoute": {
+        "selectedProvider": "groq",
+        "selectedModel": "gpt-5.5",
+        "originalRequestedModel": "gpt-5.5",
+        "downgraded": false,
+        "escalated": false,
+        "reason": "baseline route before trace-derived policy"
+      },
+      "learnedRoute": {
+        "selectedProvider": "groq",
+        "selectedModel": "gpt-5-mini",
+        "originalRequestedModel": "gpt-5.5",
+        "downgraded": true,
+        "escalated": false,
+        "reason": "learned routing policy: learned from 3 traces; avg_cost=0.0002 avg_savings=0.0098 verifier_pass_rate=1"
+      },
+      "estimatedAvoidedCostUsd": 0.0098,
+      "reason": "learned routing policy: learned from 3 traces; avg_cost=0.0002 avg_savings=0.0098 verifier_pass_rate=1"
     }
   },
   "passed": {
@@ -253,6 +275,7 @@
     "runtimeCoalescingAvoidsCalls": true,
     "microBatchingReducesLatency": true,
     "mockThroughputMeasured": true,
+    "adaptiveRoutingDowngradesFromTraceEvidence": true,
     "groqThroughputAvailableWhenRequested": true
   },
   "gaps": [

@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:10:45.742Z
+Generated: 2026-05-30T15:16:39.367Z
 
 ## Summary
 
@@ -14,6 +14,8 @@ Generated: 2026-05-30T15:10:45.742Z
 - Micro-batching latency reduction: 0.9%
 - Mock output tokens/sec: 24000
 - Groq live measured: false
+- Adaptive routing route: gpt-5.5 -> gpt-5-mini
+- Adaptive routing avoided cost/request: $0.0098
 
 ## Gates
 
@@ -23,6 +25,7 @@ Generated: 2026-05-30T15:10:45.742Z
 - runtimeCoalescingAvoidsCalls: true
 - microBatchingReducesLatency: true
 - mockThroughputMeasured: true
+- adaptiveRoutingDowngradesFromTraceEvidence: true
 - groqThroughputAvailableWhenRequested: true
 
 ## Gaps
