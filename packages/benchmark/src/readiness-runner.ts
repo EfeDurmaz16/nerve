@@ -3,6 +3,7 @@ import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
 import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
+import { cheapThenVerify } from "@tokenops/verifier";
 import { replayAll } from "./replay-runner.js";
 import { runBatchBenchmark, type BatchBenchmarkResult } from "./batch-runner.js";
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
@@ -38,6 +39,7 @@ export interface ReadinessBenchmarkReport {
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
     providerFallback: ProviderFallbackProof;
+    verifierGate: VerifierGateProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -58,6 +60,22 @@ export interface ProviderFallbackProof {
   failedProviders: string[];
   attempts: Array<{ provider: string; ok: boolean }>;
   content: string;
+  reason: string;
+}
+
+export interface VerifierGateProof {
+  passCase: {
+    verifierPassed: boolean;
+    escalatedAfterFail: boolean;
+    finalProvider: string;
+    finalContent: string;
+  };
+  failCase: {
+    verifierPassed: boolean;
+    escalatedAfterFail: boolean;
+    finalProvider: string;
+    finalContent: string;
+  };
   reason: string;
 }
 
@@ -92,6 +110,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     : undefined;
   const adaptiveRouting = buildAdaptiveRoutingProof();
   const providerFallback = await buildProviderFallbackProof();
+  const verifierGate = await buildVerifierGateProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -105,6 +124,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     mockThroughputMeasured: !mockThroughput.skipped && mockThroughput.outputTokensPerSecond > 0,
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
+    verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -129,6 +149,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       mockThroughput,
       adaptiveRouting,
       providerFallback,
+      verifierGate,
       groqThroughput,
     },
     passed,
@@ -162,6 +183,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Adaptive routing route: ${report.evidence.adaptiveRouting.baseRoute.selectedModel} -> ${report.evidence.adaptiveRouting.learnedRoute.selectedModel}`,
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
+    `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
     "",
     "## Gates",
     "",
@@ -172,6 +194,55 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+async function buildVerifierGateProof(): Promise<VerifierGateProof> {
+  const request = normalizeChatCompletionRequest({
+    model: "gpt-5-mini",
+    messages: [{ role: "user", content: "verifier gate proof" }],
+  }, { provider: "mock", workloadType: "docs_qa", riskLevel: "low" });
+  const pass = await cheapThenVerify({
+    request,
+    cheapProvider: new StaticProvider("cheap", "grounded cheap answer"),
+    strongProvider: new StaticProvider("strong", "strong answer should not be used"),
+  });
+  const fail = await cheapThenVerify({
+    request,
+    cheapProvider: new StaticProvider("cheap", "ERROR: unsupported cheap answer"),
+    strongProvider: new StaticProvider("strong", "strong verified answer"),
+  });
+  return {
+    passCase: {
+      verifierPassed: pass.verifierPassed,
+      escalatedAfterFail: pass.escalatedAfterFail,
+      finalProvider: pass.response.provider,
+      finalContent: pass.response.content,
+    },
+    failCase: {
+      verifierPassed: fail.verifierPassed,
+      escalatedAfterFail: fail.escalatedAfterFail,
+      finalProvider: fail.response.provider,
+      finalContent: fail.response.content,
+    },
+    reason: "cheap answer is served when verifier passes; failed cheap answer escalates to stronger provider",
+  };
+}
+
+class StaticProvider implements ModelProvider {
+  constructor(readonly name: string, private readonly content: string) {}
+  async complete(request: NormalizedRequest): Promise<ModelResponse> {
+    return {
+      id: `${this.name}_response`,
+      model: request.requested_model,
+      provider: this.name,
+      content: this.content,
+      finish_reason: "stop",
+      input_tokens: 1,
+      output_tokens: 1,
+      latency_ms: 1,
+      cost_usd: 0,
+    };
+  }
 }
 
 async function buildProviderFallbackProof(): Promise<ProviderFallbackProof> {
