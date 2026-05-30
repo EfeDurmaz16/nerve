@@ -125,11 +125,21 @@ describe("TokenOps store snapshots", () => {
       ok: false,
       error: "upstream unavailable",
       latency_ms: 25,
+      input_tokens: 42,
+      output_tokens: 4,
+      estimated_cost_usd: 0.000028,
       created_at: "2026-01-01T00:00:00.000Z",
-    });
+    } as Parameters<typeof insertTokenOpsProviderAttempt>[1]);
 
     const attempts = listTokenOpsProviderAttempts(db, { limit: 10 });
     expect(attempts).toHaveLength(1);
-    expect(attempts[0]).toMatchObject({ provider: "groq", ok: false, error: "upstream unavailable" });
+    expect(attempts[0]).toMatchObject({
+      provider: "groq",
+      ok: false,
+      error: "upstream unavailable",
+      input_tokens: 42,
+      output_tokens: 4,
+      estimated_cost_usd: 0.000028,
+    });
   });
 });

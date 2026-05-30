@@ -563,14 +563,17 @@ export interface TokenOpsProviderAttempt {
   ok: boolean;
   error?: string;
   latency_ms: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  estimated_cost_usd?: number;
   created_at: string;
 }
 
 export const insertTokenOpsProviderAttempt = (db: DB, attempt: TokenOpsProviderAttempt): void => {
   db.prepare(
     `INSERT OR REPLACE INTO tokenops_provider_attempts(
-      id, trace_id, request_hash, provider, model, ok, error, latency_ms, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, trace_id, request_hash, provider, model, ok, error, latency_ms, input_tokens, output_tokens, estimated_cost_usd, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     attempt.id,
     attempt.trace_id ?? null,
@@ -580,6 +583,9 @@ export const insertTokenOpsProviderAttempt = (db: DB, attempt: TokenOpsProviderA
     attempt.ok ? 1 : 0,
     attempt.error ?? null,
     attempt.latency_ms,
+    attempt.input_tokens ?? null,
+    attempt.output_tokens ?? null,
+    attempt.estimated_cost_usd ?? null,
     attempt.created_at,
   );
 };
@@ -600,6 +606,9 @@ export const listTokenOpsProviderAttempts = (
     ok: number;
     error: string | null;
     latency_ms: number;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    estimated_cost_usd: number | null;
     created_at: string;
   }>).map((row) => ({
     id: row.id,
@@ -610,6 +619,9 @@ export const listTokenOpsProviderAttempts = (
     ok: row.ok === 1,
     error: row.error ?? undefined,
     latency_ms: row.latency_ms,
+    input_tokens: row.input_tokens ?? undefined,
+    output_tokens: row.output_tokens ?? undefined,
+    estimated_cost_usd: row.estimated_cost_usd ?? undefined,
     created_at: row.created_at,
   }));
 };

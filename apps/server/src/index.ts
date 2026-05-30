@@ -29,7 +29,7 @@ import { generateEvals, learn } from "@nerve/learner";
 import { runVerifiers } from "@nerve/verifiers";
 import { replay } from "@nerve/replay";
 import { HashedEmbeddingIndex, SemanticCache, SqliteContextBlockCache, SqliteExactCache, SqliteSemanticCache, SqliteToolResultCache, simulatePrefixCache } from "@tokenops/cache";
-import { estimateCost, estimateInputTokens, estimateTextTokens, loadPricing, stableRequestHash, type BudgetPolicy, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
+import { estimateCost, estimateInputTokens, estimateTextTokens, loadPricing, stableRequestHash, type BudgetPolicy, type ModelResponse, type NormalizedRequest, type RequestTrace } from "@tokenops/core";
 import { normalizeOpenAIChatRequest, normalizeOpenAIEmbeddingsRequest, responsesRequestToChatRequest, toOpenAIChatCompletion, toOpenAIChatCompletionStream, toOpenAIEmbeddingResponse, toOpenAIResponse } from "@tokenops/gateway";
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
@@ -961,7 +961,7 @@ function recordProviderAttempts(
   request: NormalizedRequest,
   model: string,
   selectedProvider: string,
-  response: { raw?: unknown } | undefined,
+  response: ModelResponse | undefined,
   servedWithoutProviderCall: boolean,
   latencyMs: number,
   error?: string,
@@ -981,6 +981,9 @@ function recordProviderAttempts(
       ok: attempt.ok,
       error: attempt.error,
       latency_ms: attempt.ok ? latencyMs : 0,
+      input_tokens: attempt.ok ? response?.input_tokens : undefined,
+      output_tokens: attempt.ok ? response?.output_tokens : undefined,
+      estimated_cost_usd: attempt.ok ? response?.cost_usd : undefined,
       created_at: new Date(Date.now() + index).toISOString(),
     });
   });

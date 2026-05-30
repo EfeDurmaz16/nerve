@@ -9,6 +9,9 @@ CREATE TABLE IF NOT EXISTS tokenops_provider_attempts (
   ok            INTEGER NOT NULL,
   error         TEXT,
   latency_ms    INTEGER NOT NULL,
+  input_tokens  INTEGER,
+  output_tokens INTEGER,
+  estimated_cost_usd REAL,
   created_at    TEXT NOT NULL
 );
 

@@ -377,7 +377,12 @@ describe("TokenOps server", () => {
       const attempts = (await app.inject({ method: "GET", url: "/providers/attempts" })).json().attempts;
       expect(attempts.map((attempt: { provider: string }) => attempt.provider)).toEqual(["mock", "groq"]);
       expect(attempts.find((attempt: { provider: string }) => attempt.provider === "groq")).toMatchObject({ ok: false });
-      expect(attempts.find((attempt: { provider: string }) => attempt.provider === "mock")).toMatchObject({ ok: true });
+      expect(attempts.find((attempt: { provider: string }) => attempt.provider === "mock")).toMatchObject({
+        ok: true,
+        input_tokens: expect.any(Number),
+        output_tokens: expect.any(Number),
+        estimated_cost_usd: expect.any(Number),
+      });
       await app.close();
     });
   });

@@ -72,7 +72,7 @@ TOKENOPS_PROVIDER=groq,ollama,mock
 
 The gateway attempts providers left-to-right. If the selected provider differs from the configured chain, the request trace records the effective provider and annotates the routing reason with the fallback decision.
 
-Each serving-path provider attempt is also written to `tokenops_provider_attempts`. This gives a separate operational ledger for fallback and retry debugging without parsing full request traces.
+Each serving-path provider attempt is also written to `tokenops_provider_attempts`. This gives a separate operational ledger for fallback and retry debugging without parsing full request traces. Successful attempts include input tokens, output tokens, and the local estimated provider cost so usage reconciliation can start from actual serving-path evidence.
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts

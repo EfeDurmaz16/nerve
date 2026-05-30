@@ -92,6 +92,8 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts prune --keep-traces 1000 --keep-ben
 Reconcile provider usage exports against the local trace ledger:
 
 ```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
+
 cat > ./provider-usage.jsonl <<'JSONL'
 {"provider":"groq","model":"llama-3.3-70b-versatile","trace_id":"tr_example","request_hash":"hash_example","input_tokens":42,"output_tokens":4,"actual_cost_usd":0.001}
 JSONL

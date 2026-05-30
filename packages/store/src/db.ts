@@ -14,6 +14,7 @@ export function openDb(path: string): DB {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   migrate(db);
+  ensureTokenOpsProviderAttemptUsageColumns(db);
   return db;
 }
 
@@ -29,4 +30,16 @@ function migrate(db: DB): void {
     return;
   }
   throw new Error("nerve: migration SQL not found");
+}
+
+function ensureTokenOpsProviderAttemptUsageColumns(db: DB): void {
+  const columns = new Set(
+    db.prepare("PRAGMA table_info(tokenops_provider_attempts)").all().map((row) => (row as { name: string }).name),
+  );
+  const addColumn = (name: string, definition: string) => {
+    if (!columns.has(name)) db.prepare(`ALTER TABLE tokenops_provider_attempts ADD COLUMN ${name} ${definition}`).run();
+  };
+  addColumn("input_tokens", "INTEGER");
+  addColumn("output_tokens", "INTEGER");
+  addColumn("estimated_cost_usd", "REAL");
 }
