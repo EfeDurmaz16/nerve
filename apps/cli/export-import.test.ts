@@ -201,6 +201,38 @@ describe("tokenops snapshot CLI", () => {
     expect(result.verification.find((entry) => entry.area === "http-gateway-smoke")?.command).toContain("gateway smoke");
   });
 
+  it("runs local-safe readiness verification from the CLI", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-readiness-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+
+    const result = JSON.parse(execTokenOps([
+      "verify",
+      "readiness",
+      "--json",
+      "--load-requests",
+      "6",
+      "--load-concurrency",
+      "3",
+      "--batch-requests",
+      "6",
+      "--throughput-requests",
+      "3",
+      "--throughput-concurrency",
+      "2",
+    ], dbPath)) as {
+      readyForLocalDemo: boolean;
+      checks: Array<{ area: string; status: string }>;
+      failed: string[];
+      manual: string[];
+    };
+
+    expect(result.readyForLocalDemo).toBe(true);
+    expect(result.failed).toEqual([]);
+    expect(result.checks.find((entry) => entry.area === "replay-benchmark")?.status).toBe("pass");
+    expect(result.checks.find((entry) => entry.area === "http-gateway-smoke")?.status).toBe("manual");
+    expect(result.manual).toContain("http-gateway-smoke");
+  });
+
   it("prints provider arbitrage route from local TokenOps traces", () => {
     const dir = mkdtempSync(join(tmpdir(), "tokenops-arbitrage-cli-"));
     const dbPath = join(dir, "tokenops.db");

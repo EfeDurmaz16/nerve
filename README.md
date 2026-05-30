@@ -114,6 +114,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify readiness --json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo --json
@@ -153,6 +154,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops throughput [mock|ollama|groq]`
 - `tokenops proof`
 - `tokenops doctor`
+- `tokenops verify readiness [--json]`
 - `tokenops gateway smoke [--url http://127.0.0.1:8787] [--admission]`
 - `tokenops stats`
 - `tokenops trace <id>`

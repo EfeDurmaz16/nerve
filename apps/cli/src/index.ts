@@ -78,6 +78,7 @@ usage:
   tokenops routing arbitrage             choose cheapest healthy provider from local traces
   tokenops providers health              score provider health from local traces
   tokenops providers attempts            list provider call attempts from local DB
+  tokenops verify readiness              run local-safe readiness manifest checks
   tokenops verify eval [--dataset file]  run verifier eval harness
   tokenops verify routing [dataset]      run cheap-then-verify routing eval
   tokenops compare groq                  run live Groq direct-vs-gateway comparison
@@ -146,6 +147,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
+    if (cmd === "verify" && argv[1] === "readiness") return cmdTokenOpsVerifyReadiness(argv.slice(2));
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
     if (cmd === "verify" && argv[1] === "routing") return cmdTokenOpsVerifyRouting(argv.slice(2));
     if (cmd === "compare" && argv[1] === "groq") return cmdTokenOpsCompareGroq();
@@ -483,6 +485,49 @@ async function cmdTokenOpsDemo(args: string[]) {
   console.log(`Analyzer: ${demo.analyzer.insights} insights, $${demo.analyzer.avoidableCostUsd} avoidable`);
   console.log(`Gateway smoke: ${demo.gateway.smokeCommand}`);
   if (!demo.readyForLocalDemo) process.exit(1);
+}
+
+async function cmdTokenOpsVerifyReadiness(args: string[]) {
+  const report = await runReadinessBenchmark({
+    includeGroq: args.includes("--include-groq"),
+    loadRequests: Number(getOpt(args, "--load-requests") ?? 12),
+    loadConcurrency: Number(getOpt(args, "--load-concurrency") ?? 6),
+    batchRequests: Number(getOpt(args, "--batch-requests") ?? 12),
+    throughputRequests: Number(getOpt(args, "--throughput-requests") ?? 6),
+    throughputConcurrency: Number(getOpt(args, "--throughput-concurrency") ?? 3),
+  });
+  const checks = report.verification.map((entry) => ({
+    ...entry,
+    status: verificationStatus(entry.area, report.passed),
+  }));
+  const failed = checks.filter((entry) => entry.status === "fail");
+  const result = {
+    readyForLocalDemo: report.summary.readyForLocalDemo,
+    checks,
+    failed: failed.map((entry) => entry.area),
+    manual: checks.filter((entry) => entry.status === "manual").map((entry) => entry.area),
+    gaps: report.gaps,
+  };
+  if (args.includes("--json")) {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log(kleur.bold("TokenOps readiness verification"));
+    for (const check of checks) {
+      const color = check.status === "pass" ? kleur.green : check.status === "manual" ? kleur.yellow : kleur.red;
+      console.log(color(`${check.status.toUpperCase()} ${check.area}`));
+      console.log(`  ${check.command}`);
+    }
+  }
+  if (failed.length > 0 || !report.summary.readyForLocalDemo) process.exit(1);
+}
+
+function verificationStatus(area: string, passed: Record<string, boolean>): "pass" | "fail" | "manual" {
+  if (area === "replay-benchmark") return passed.replayShowsSavings && passed.exactOrSemanticCacheObserved ? "pass" : "fail";
+  if (area === "product-readiness") return Object.values(passed).every(Boolean) ? "pass" : "fail";
+  if (area === "http-gateway-smoke" || area === "http-admission-control") return "manual";
+  if (area === "semantic-cache-safety") return passed.semanticCacheAdversarialEvalPasses && passed.semanticThresholdSweepFindsSafeThreshold ? "pass" : "fail";
+  if (area === "verifier-routing") return passed.verifierRoutingEvalPasses ? "pass" : "fail";
+  return "manual";
 }
 
 async function cmdTokenOpsCacheEval(args: string[]) {
