@@ -333,6 +333,7 @@ Production-like:
 - trace-derived adaptive routing policy endpoint and optional runtime application
 - verifier pass-rate gated adaptive routing
 - provider health scoring from traces
+- trace-derived provider arbitrage across configured provider candidates
 - verifier eval harness with confusion metrics
 - cheap-then-verify routing benchmark with false/missed escalation counts
 - semantic-cache safety eval with adversarial cache-reuse fixtures
@@ -342,6 +343,7 @@ Production-like:
 - provider failure traces with redaction for common API key and authorization formats
 - inference runtime with concurrency admission, bounded queueing, provider circuit breaker, provider timeout aborts, and in-flight request coalescing
 - rolling SLO routing policy from local traces, with error-rate, p95 latency, and average cost thresholds
+- optional provider arbitrage with `TOKENOPS_PROVIDER_ARBITRAGE=1` and `TOKENOPS_PROVIDER_CANDIDATES=groq,openai,mock`
 - SLO rerouting benchmark that proves unhealthy providers are avoided when an eligible fallback exists
 - first-class `providerLatencyMs` in TokenOps request traces for SLO routing and provider health
 - tests and typecheck

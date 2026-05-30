@@ -34,7 +34,7 @@ import { normalizeOpenAIChatRequest, normalizeOpenAIEmbeddingsRequest, responses
 import { SqliteTraceStore, gatewayStats, analyzeTraces, providerHealthReport } from "@tokenops/ledger";
 import { classifyWorkload, estimateComplexity } from "@tokenops/profiler";
 import { detectAgentLoop, evaluateBudgetPolicy, evaluateQuota, simulateBudgetPolicy } from "@tokenops/policy";
-import { applyLearnedRouting, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "@tokenops/router";
+import { applyLearnedRouting, applyProviderArbitrage, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "@tokenops/router";
 import { InferenceRuntime } from "@tokenops/runtime";
 import { planCompute } from "@tokenops/ais";
 import type { DB } from "@nerve/store";
@@ -197,6 +197,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       ...routeModel({ request, workloadType: profile.workloadType, complexity, riskLevel: profile.riskLevel, budgetAction: effectivePolicy.action === "downgrade" ? "downgrade" : "allow" }),
       selectedProvider: providerName,
     };
+    const healthReport = providerHealthReport(tracesForPolicy);
     if (process.env.TOKENOPS_ADAPTIVE_ROUTING === "1") {
       route = applyLearnedRouting(
         route,
@@ -206,10 +207,17 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
           minVerifierPassRate: Number(process.env.TOKENOPS_ROUTING_MIN_VERIFIER_PASS_RATE ?? 0.8),
         }),
         {
-          providerHealth: providerHealthReport(tracesForPolicy),
+          providerHealth: healthReport,
           minProviderHealthScore: Number(process.env.TOKENOPS_ROUTING_MIN_PROVIDER_HEALTH ?? 0),
         },
       );
+    }
+    if (process.env.TOKENOPS_PROVIDER_ARBITRAGE === "1") {
+      route = applyProviderArbitrage(route, healthReport, {
+        candidates: providerArbitrageCandidates(providerName),
+        minHealthScore: envNumber("TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH", 0.8),
+        maxP95LatencyMs: envNumber("TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS", Number.MAX_SAFE_INTEGER),
+      });
     }
     if (process.env.TOKENOPS_SLO_ROUTING === "1") {
       route = applySloRouting(
@@ -811,6 +819,11 @@ function sloPolicyOptionsFromEnv(): Parameters<typeof learnSloRoutingPolicy>[1] 
 function providerFallbackNames(providerName: string): string[] {
   const names = providerName.split(",").map((name) => name.trim()).filter(Boolean);
   return names.length > 1 ? names.slice(1) : ["mock"];
+}
+
+function providerArbitrageCandidates(providerName: string): string[] {
+  const configured = process.env.TOKENOPS_PROVIDER_CANDIDATES;
+  return (configured ?? providerName).split(",").map((name) => name.trim()).filter(Boolean);
 }
 
 function providerCoalesceKey(request: NormalizedRequest, route: ReturnType<typeof routeModel>): string {

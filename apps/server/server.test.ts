@@ -644,6 +644,50 @@ describe("TokenOps server", () => {
       await app.close();
     });
   });
+
+  it("uses provider arbitrage to choose the cheapest healthy candidate before inference", async () => {
+    await withEnv({
+      TOKENOPS_PROVIDER: "openai",
+      TOKENOPS_PROVIDER_ARBITRAGE: "1",
+      TOKENOPS_PROVIDER_CANDIDATES: "openai,mock",
+      TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH: "0.8",
+      TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS: "1000",
+      OPENAI_API_KEY: undefined,
+    }, async () => {
+      const db = openDb(":memory:");
+      const traces = [
+        serverTrace("openai_ok_1", "openai", "model", 700, 0.04, 0.04),
+        serverTrace("openai_ok_2", "openai", "model", 650, 0.04, 0.04),
+        serverTrace("mock_ok_1", "mock", "model", 25, 0.04, 0),
+        serverTrace("mock_ok_2", "mock", "model", 30, 0.04, 0),
+      ];
+      const app = createApp({
+        db,
+        dbPath: ":memory:",
+        state: {
+          exactCache: new (await import("@tokenops/cache")).SqliteExactCache(db),
+          semanticCache: new (await import("@tokenops/cache")).SqliteSemanticCache(db),
+          toolResultCache: new (await import("@tokenops/cache")).SqliteToolResultCache(db),
+          contextBlockCache: new (await import("@tokenops/cache")).SqliteContextBlockCache(db),
+          traceStore: {
+            insert(trace: RequestTrace) { traces.unshift(trace); },
+            get(id: string) { return traces.find((trace) => trace.id === id) ?? null; },
+            list(limit = 100) { return traces.slice(0, limit); },
+            clear() { traces.length = 0; },
+          },
+        },
+      });
+      const res = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        payload: { model: "gpt-5.5", messages: [{ role: "user", content: "docs quickstart" }] },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().tokenops.routing.selectedProvider).toBe("mock");
+      expect(res.json().tokenops.routing.reason).toContain("provider arbitrage");
+      await app.close();
+    });
+  });
 });
 
 function serverTrace(

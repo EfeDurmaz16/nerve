@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
-import { applyLearnedRouting, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "./src/index.js";
+import { applyLearnedRouting, applyProviderArbitrage, applySloRouting, learnRoutingPolicy, learnSloRoutingPolicy, providerFor, routeModel } from "./src/index.js";
 import type { ProviderHealthReport } from "@tokenops/ledger";
 import type { RequestTrace } from "@tokenops/core";
 
@@ -100,7 +100,48 @@ describe("TokenOps router", () => {
     expect(routed.selectedProvider).toBe("mock");
     expect(routed.reason).toContain("SLO reroute");
   });
+
+  it("selects the cheapest healthy provider from a candidate set", () => {
+    const base = {
+      selectedProvider: "openai",
+      selectedModel: "gpt-5-mini",
+      originalRequestedModel: "gpt-5.5",
+      downgraded: true,
+      escalated: false,
+      reason: "base",
+    };
+    const health: ProviderHealthReport = {
+      generatedAt: new Date().toISOString(),
+      providers: {
+        openai: providerHealth("openai", 0.95, 0.04, 700),
+        groq: providerHealth("groq", 0.92, 0.01, 300),
+        mock: providerHealth("mock", 0.3, 0, 10),
+      },
+    };
+
+    const routed = applyProviderArbitrage(base, health, {
+      candidates: ["openai", "groq", "mock"],
+      minHealthScore: 0.8,
+      maxP95LatencyMs: 1_000,
+    });
+
+    expect(routed.selectedProvider).toBe("groq");
+    expect(routed.reason).toContain("provider arbitrage");
+  });
 });
+
+function providerHealth(provider: string, healthScore: number, averageOptimizedCostUsd: number, p95LatencyMs: number): ProviderHealthReport["providers"][string] {
+  return {
+    provider,
+    requests: 10,
+    blockedRate: 0,
+    verifierPassRate: 1,
+    averageOptimizedCostUsd,
+    p95LatencyMs,
+    cacheHitRate: 0,
+    healthScore,
+  };
+}
 
 function trace(
   id: string,

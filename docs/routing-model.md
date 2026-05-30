@@ -94,3 +94,22 @@ GET /providers/health
 ```
 
 reports per-provider request count, blocked rate, verifier pass-rate, cache hit-rate, average optimized cost, and a normalized health score.
+
+## Provider Arbitrage
+
+TokenOps can also choose between configured provider candidates before inference.
+This is separate from fallback: fallback reacts to provider failure, while provider
+arbitrage uses recent trace-derived health, p95 latency, and optimized cost to
+pick the cheapest healthy provider up front.
+
+```bash
+TOKENOPS_PROVIDER_ARBITRAGE=1
+TOKENOPS_PROVIDER_CANDIDATES=groq,openai,mock
+TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH=0.8
+TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS=1000
+```
+
+If no candidate has enough local evidence, TokenOps keeps the normal selected
+provider and records the skip reason in the route explanation. This keeps the
+first request deterministic and lets the gateway become more adaptive as the
+trace ledger fills.

@@ -194,6 +194,17 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 
 `routing slo-benchmark` uses synthetic provider traces to verify that an unhealthy provider is rerouted to an eligible fallback.
 
+Enable provider arbitrage when you want TokenOps to pick the cheapest healthy
+provider from recent traces before inference:
+
+```bash
+TOKENOPS_PROVIDER_ARBITRAGE=1 \
+TOKENOPS_PROVIDER_CANDIDATES=groq,openai,mock \
+TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH=0.8 \
+TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS=1000 \
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts serve
+```
+
 Print provider health from local traces:
 
 ```bash
