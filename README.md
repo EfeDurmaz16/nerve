@@ -318,7 +318,7 @@ Production-like:
 - AIS compute plan
 - request trace and cost ledger
 - SQLite-backed provider attempt ledger for fallback/retry debugging
-- SQLite-backed idempotency records for retry-safe non-streaming chat completions
+- SQLite-backed idempotency records for retry-safe chat completions, including SSE replay
 - snapshot import/export for TokenOps traces and benchmark results
 - provider usage JSONL reconciliation against the trace ledger
 - OpenTelemetry-style JSONL trace export
@@ -357,7 +357,7 @@ Prototype/mock:
 - benchmark datasets are small deterministic fixtures
 - rate limiting is local in-memory per gateway process
 - circuit breaker and coalescing are local per gateway process; distributed coordination is future work
-- idempotency is implemented for non-streaming chat completions; streaming retries are rejected until stream replay is implemented
+- idempotency is implemented for non-streaming chat completions and generated SSE stream replay; token-level upstream streaming remains future work
 
 Roadmap:
 
@@ -597,7 +597,7 @@ This is the smallest thing that proves the loop. It deliberately does not yet do
 - **No dashboard / UI.** Read API + JSON only. Pipe to Langfuse/Grafana if you want graphs.
 - **No auto-promotion of patches.** Every patch requires `patches approve`.
 - **Replay uses a simulated model**, deterministically tied to cluster signatures, so the demo runs without API keys. The grader interface (`packages/verifiers/`) is the same one a real-model replay would use; swap `replay/src/index.ts:simulate()` for a real call when you bring keys.
-- **No streaming / SSE.** Request/response only.
+- **TokenOps gateway SSE is simulated from complete responses.** Real provider token-level delta proxying is still future work.
 - **No fine-tuning.** nerve learns by changing *policy and context*, not weights.
 
 What is **honest**:

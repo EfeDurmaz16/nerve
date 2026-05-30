@@ -88,6 +88,10 @@ export interface AppState {
   runtime?: InferenceRuntime;
 }
 
+type IdempotencyReplayBody =
+  | { kind: "json"; body: unknown }
+  | { kind: "sse"; body: string };
+
 export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } = {}) {
   const dbPath = opts.dbPath ?? DEFAULT_DB_PATH;
   const db = opts.db ?? openDb(dbPath);
@@ -152,11 +156,8 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       risk_level: profile.riskLevel,
     };
     request = { ...request, normalized_hash: stableRequestHash(request) };
-    if (idemKey && wantsStream) {
-      return reply.code(422).send({ error: { message: "idempotency-key is only supported for non-streaming chat completions", type: "unsupported_feature" } });
-    }
     if (idemKey) {
-      const replay = getTokenOpsIdempotencyRecord(db, "/v1/chat/completions", idemKey);
+      const replay = getTokenOpsIdempotencyRecord<IdempotencyReplayBody>(db, "/v1/chat/completions", idemKey);
       if (replay && replay.request_hash !== request.normalized_hash) {
         return reply.code(409).send({
           error: {
@@ -168,7 +169,13 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       if (replay) {
         reply.header("x-tokenops-idempotency-hit", "true");
         if (replay.trace_id) reply.header("x-tokenops-trace-id", replay.trace_id);
-        return reply.code(replay.status_code).send(replay.response_body);
+        const replayBody = normalizeIdempotencyReplayBody(replay.response_body);
+        if (replayBody.kind === "sse") {
+          reply.header("content-type", "text/event-stream; charset=utf-8");
+          reply.header("cache-control", "no-cache");
+          return reply.code(replay.status_code).send(replayBody.body);
+        }
+        return reply.code(replay.status_code).send(replayBody.body);
       }
     }
     const complexity = estimateComplexity(request);
@@ -359,9 +366,21 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     recordProviderAttempts(db, trace.id, request, route.selectedModel, effectiveRoute.selectedProvider, response, exactHit || semanticHit || runtimeCoalesced, response.latency_ms);
     reply.header("x-tokenops-trace-id", trace.id);
     if (wantsStream) {
+      const streamBody = toOpenAIChatCompletionStream(response);
+      if (idemKey) {
+        insertTokenOpsIdempotencyRecord<IdempotencyReplayBody>(db, {
+          route: "/v1/chat/completions",
+          key: idemKey,
+          request_hash: request.normalized_hash,
+          status_code: 200,
+          trace_id: trace.id,
+          response_body: { kind: "sse", body: streamBody },
+          created_at: new Date().toISOString(),
+        });
+      }
       reply.header("content-type", "text/event-stream; charset=utf-8");
       reply.header("cache-control", "no-cache");
-      return reply.send(toOpenAIChatCompletionStream(response));
+      return reply.send(streamBody);
     }
     const completion = toOpenAIChatCompletion(request, response);
     const body = {
@@ -378,13 +397,13 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
       },
     };
     if (idemKey) {
-      insertTokenOpsIdempotencyRecord(db, {
+      insertTokenOpsIdempotencyRecord<IdempotencyReplayBody>(db, {
         route: "/v1/chat/completions",
         key: idemKey,
         request_hash: request.normalized_hash,
         status_code: 200,
         trace_id: trace.id,
-        response_body: body,
+        response_body: { kind: "json", body },
         created_at: new Date().toISOString(),
       });
     }
@@ -803,6 +822,12 @@ function idempotencyKey(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 && trimmed.length <= 256 ? trimmed : undefined;
+}
+
+function normalizeIdempotencyReplayBody(value: unknown): IdempotencyReplayBody {
+  if (isRecord(value) && value.kind === "sse" && typeof value.body === "string") return value as IdempotencyReplayBody;
+  if (isRecord(value) && value.kind === "json" && "body" in value) return value as IdempotencyReplayBody;
+  return { kind: "json", body: value };
 }
 
 function recordProviderAttempts(

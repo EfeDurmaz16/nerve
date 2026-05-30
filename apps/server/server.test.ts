@@ -93,6 +93,35 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("replays streaming chat completions by idempotency key without creating a second trace", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const payload = { model: "mock", stream: true, messages: [{ role: "user", content: "retry-safe stream" }] };
+      const first = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-stream-1" },
+        payload,
+      });
+      const second = await app.inject({
+        method: "POST",
+        url: "/v1/chat/completions",
+        headers: { "idempotency-key": "idem-stream-1" },
+        payload,
+      });
+
+      expect(first.statusCode).toBe(200);
+      expect(second.statusCode).toBe(200);
+      expect(first.headers["content-type"]).toContain("text/event-stream");
+      expect(second.headers["content-type"]).toContain("text/event-stream");
+      expect(second.headers["x-tokenops-idempotency-hit"]).toBe("true");
+      expect(second.headers["x-tokenops-trace-id"]).toBe(first.headers["x-tokenops-trace-id"]);
+      expect(second.body).toBe(first.body);
+      expect((await app.inject({ method: "GET", url: "/stats" })).json().requests).toBe(1);
+      await app.close();
+    });
+  });
+
   it("serves minimal OpenAI-compatible responses", async () => {
     await withProvider("mock", async () => {
       const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });

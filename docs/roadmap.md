@@ -59,10 +59,10 @@ The 1-month target is a credible local/self-hosted alpha that can sit in front o
 
 ### Serving
 
-- Support OpenAI-style streaming with token-level chunks when real providers support it.
+- Replace generated SSE replay with real provider token-level streaming when adapters support it.
 - Harden `/v1/responses` beyond minimal non-streaming compatibility.
 - Add provider-backed embeddings for production semantic-cache experiments.
-- Extend idempotency replay to streaming responses once token-level stream capture exists.
+- Extend idempotency replay to captured provider token deltas once real upstream streaming lands.
 - Add request timeout and retry policy.
 
 ### Replay and Evaluation

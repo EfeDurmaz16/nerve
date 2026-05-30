@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T18:45:04.011Z",
+  "generatedAt": "2026-05-30T18:49:01.552Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 5,
     "batchingLatencyReductionPct": 0.8,
-    "mockOutputTokensPerSecond": 8000,
+    "mockOutputTokensPerSecond": 9600,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,12 +152,12 @@
       "concurrency": 4,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 29,
+      "wallTimeMs": 31,
       "providerCalls": 5,
       "coalescedResponses": 5,
       "avoidedProviderCalls": 5,
       "p50LatencyMs": 10,
-      "p95LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 4,
@@ -236,7 +236,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780166763497,
+            "openedUntil": 1780167001032,
             "halfOpenInFlight": 0
           }
         }
@@ -248,13 +248,13 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 6,
+      "wallTimeMs": 5,
       "providerCalls": 2,
       "totalInputTokens": 80,
       "totalOutputTokens": 48,
       "totalTokens": 128,
-      "outputTokensPerSecond": 8000,
-      "totalTokensPerSecond": 21333.33,
+      "outputTokensPerSecond": 9600,
+      "totalTokensPerSecond": 25600,
       "p50LatencyMs": 3,
       "p95LatencyMs": 3,
       "errors": 0,
@@ -315,7 +315,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T18:45:03.995Z",
+        "generatedAt": "2026-05-30T18:49:01.509Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -1383,7 +1383,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX38EWB3SGQP5BE531XP3S2",
+        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1409,7 +1409,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX38EWB3SGQP5BE531XP3S2",
+        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1438,7 +1438,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX38EWB3SGQP5BE531XP3S2",
+        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1466,7 +1466,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX38EWB3SGQP5BE531XP3S2",
+        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1503,15 +1503,15 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 482,
+      "wallTimeMs": 460,
       "providerCalls": 2,
       "totalInputTokens": 120,
       "totalOutputTokens": 54,
       "totalTokens": 174,
-      "outputTokensPerSecond": 112.03,
-      "totalTokensPerSecond": 361,
-      "p50LatencyMs": 310,
-      "p95LatencyMs": 310,
+      "outputTokensPerSecond": 117.39,
+      "totalTokensPerSecond": 378.26,
+      "p50LatencyMs": 287,
+      "p95LatencyMs": 287,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
