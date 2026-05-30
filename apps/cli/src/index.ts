@@ -296,6 +296,7 @@ async function cmdTokenOpsLoadShedding() {
 async function cmdTokenOpsGatewaySmoke(args: string[]) {
   const baseUrl = (getOpt(args, "--url") ?? process.env.TOKENOPS_GATEWAY_URL ?? `http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}`).replace(/\/$/, "");
   const includeAdmission = args.includes("--admission");
+  const requiredProvider = getOpt(args, "--require-provider");
   const health = await fetchJson(`${baseUrl}/health`);
   const ready = await fetchJson(`${baseUrl}/ready`);
   const models = await fetchJson(`${baseUrl}/v1/models`);
@@ -316,6 +317,8 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
   const thirdBody = third.body as SmokeChatBody;
   const coalescedObserved = Boolean(firstBody.tokenops?.runtime?.coalesced || secondBody.tokenops?.runtime?.coalesced);
   const exactCacheObserved = Boolean(thirdBody.tokenops?.cache?.exactHit);
+  const providerObserved = firstBody.tokenops?.provider;
+  const requiredProviderObserved = !requiredProvider || providerObserved === requiredProvider;
   const admission = includeAdmission ? await runGatewayAdmissionSmoke(baseUrl, payload.model) : undefined;
   const basicPassed =
     first.status === 200 &&
@@ -327,6 +330,7 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
     Array.isArray((models as { data?: unknown }).data) &&
     Boolean(firstBody.tokenops?.trace_id) &&
     exactCacheObserved &&
+    requiredProviderObserved &&
     typeof (runtime as { scheduler?: { admitted?: unknown } }).scheduler?.admitted === "number";
   const passed = basicPassed && (!includeAdmission || admission?.passed === true);
   const result = {
@@ -338,6 +342,9 @@ async function cmdTokenOpsGatewaySmoke(args: string[]) {
       passed: basicPassed,
       statuses: [first.status, second.status, third.status],
       traceIds: [firstBody.tokenops?.trace_id, secondBody.tokenops?.trace_id, thirdBody.tokenops?.trace_id],
+      providerObserved,
+      requiredProvider,
+      requiredProviderObserved,
       coalescedObserved,
       exactCacheObserved,
       runtimeScheduler: (runtime as { scheduler?: unknown }).scheduler,
@@ -953,6 +960,7 @@ interface SmokeHttpResult {
 interface SmokeChatBody {
   object?: string;
   tokenops?: {
+    provider?: string;
     trace_id?: string;
     cache?: { exactHit?: boolean };
     runtime?: {

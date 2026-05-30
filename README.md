@@ -157,7 +157,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops proof`
 - `tokenops doctor`
 - `tokenops verify readiness [--json]`
-- `tokenops gateway smoke [--url http://127.0.0.1:8787] [--admission]`
+- `tokenops gateway smoke [--url http://127.0.0.1:8787] [--admission] [--require-provider groq]`
 - `tokenops stats`
 - `tokenops trace <id>`
 - `tokenops cache stats`
@@ -302,6 +302,16 @@ pnpm --filter @nerve/server start
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
   --url http://127.0.0.1:8787 \
   --admission
+```
+
+For live-provider proof, start the gateway with Groq and require the first
+uncached call to use Groq instead of silently passing through mock or fallback:
+
+```bash
+GROQ_API_KEY=... TOKENOPS_PROVIDER=groq pnpm --filter @nerve/server start
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
+  --url http://127.0.0.1:8787 \
+  --require-provider groq
 ```
 
 Safety/eval gates:

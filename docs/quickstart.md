@@ -329,6 +329,16 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
   --admission
 ```
 
+To prove a live provider is actually serving the first uncached gateway call,
+start with Groq and require that provider in the smoke:
+
+```bash
+GROQ_API_KEY=... TOKENOPS_PROVIDER=groq pnpm --filter @nerve/server start
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke \
+  --url http://127.0.0.1:8787 \
+  --require-provider groq
+```
+
 Run demo:
 
 ```bash

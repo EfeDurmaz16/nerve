@@ -150,11 +150,11 @@ describe("tokenops snapshot CLI", () => {
       try {
         const address = app.server.address();
         if (!address || typeof address === "string") throw new Error("expected TCP listener address");
-        const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission"], dbPath)) as {
+        const result = JSON.parse(await execTokenOpsAsync(["gateway", "smoke", "--url", `http://127.0.0.1:${address.port}`, "--admission", "--require-provider", "mock"], dbPath)) as {
           passed: boolean;
           ready: { ready: boolean };
           models: { object: string; data: Array<{ id: string }> };
-          basic: { passed: boolean; exactCacheObserved: boolean };
+          basic: { passed: boolean; exactCacheObserved: boolean; requiredProviderObserved: boolean; providerObserved: string };
           admission?: { passed: boolean; shedObserved: boolean; foregroundAdmitted: boolean };
         };
 
@@ -164,6 +164,8 @@ describe("tokenops snapshot CLI", () => {
         expect(result.models.data.some((model) => model.id === "gpt-5-mini")).toBe(true);
         expect(result.basic.passed).toBe(true);
         expect(result.basic.exactCacheObserved).toBe(true);
+        expect(result.basic.providerObserved).toBe("mock");
+        expect(result.basic.requiredProviderObserved).toBe(true);
         expect(result.admission?.passed).toBe(true);
         expect(result.admission?.shedObserved).toBe(true);
         expect(result.admission?.foregroundAdmitted).toBe(true);

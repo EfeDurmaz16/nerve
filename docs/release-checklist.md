@@ -31,6 +31,7 @@ If `GROQ_API_KEY` is configured in `.env`, also run:
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare groq
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --require-provider groq
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
 ```
 
