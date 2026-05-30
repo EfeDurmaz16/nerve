@@ -10,6 +10,13 @@ export interface InferenceRuntimeOptions {
   circuitCooldownMs?: number;
 }
 
+export interface InferenceRuntimeExecuteInput<T> {
+  providerKey: string;
+  coalesceKey: string;
+  priority?: number;
+  run: () => Promise<T>;
+}
+
 export interface RuntimeExecution<T = ModelResponse> {
   value: T;
   coalesced: boolean;
@@ -35,12 +42,12 @@ export class InferenceRuntime {
     });
   }
 
-  execute<T>(input: { providerKey: string; coalesceKey: string; run: () => Promise<T> }): Promise<RuntimeExecution<T>> {
+  execute<T>(input: InferenceRuntimeExecuteInput<T>): Promise<RuntimeExecution<T>> {
     const circuitBefore = this.breaker.snapshot(input.providerKey);
     this.breaker.beforeExecute(input.providerKey);
     return this.coalescer.run(input.coalesceKey, async () => {
       try {
-        const value = await this.scheduler.execute(input.run);
+        const value = await this.scheduler.execute(input.run, { priority: input.priority });
         this.breaker.recordSuccess(input.providerKey);
         return value;
       } catch (error) {

@@ -5,6 +5,7 @@ export * from "./batch-runner.js";
 export * from "./provider-throughput-runner.js";
 export * from "./failover-runner.js";
 export * from "./provider-slo-runner.js";
+export * from "./priority-scheduling-runner.js";
 export * from "./readiness-runner.js";
 export * from "./semantic-safety-runner.js";
 export * from "./verifier-routing-runner.js";

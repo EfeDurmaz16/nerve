@@ -6,6 +6,7 @@ The runtime is deliberately small, but it covers the infrastructure mechanics th
 
 - concurrency admission
 - bounded inference queue
+- priority-aware foreground/background queueing
 - provider circuit breaker
 - provider timeout aborts
 - in-flight request coalescing
@@ -18,11 +19,16 @@ Gateway
   -> InferenceRuntime
      -> circuit breaker check
      -> in-flight coalescer
-     -> bounded scheduler
+     -> bounded priority scheduler
      -> provider adapter
 ```
 
 If two identical cache misses arrive concurrently, TokenOps shares the same in-flight provider call instead of burning duplicate compute. The second waiter is reported as `tokenops.runtime.coalesced = true`.
+
+When the local queue is saturated, higher-priority foreground inference can run
+before queued background work. Equal-priority jobs preserve FIFO order. Runtime
+stats expose `scheduler.queuedByPriority` so local operators can see whether
+background verification or refresh work is piling up behind user-facing calls.
 
 If a `/v1/chat/completions` request includes `idempotency-key`, TokenOps stores the successful response in SQLite under the request hash. A retry with the same key and same request returns the stored JSON body or generated SSE body with `x-tokenops-idempotency-hit: true` and does not create another trace or provider call. A retry with the same key and a different request returns `409 idempotency_key_conflict`.
 
@@ -62,6 +68,7 @@ GET /runtime/stats
 Returns:
 
 - scheduler max concurrency, queue length, admitted, rejected, completed
+- scheduler queued counts by priority
 - coalescer shared calls and coalesced waiters
 - circuit breaker state by provider key
 
@@ -87,6 +94,9 @@ The benchmark generates concurrent OpenAI-style requests against the local runti
 - p50/p95 latency
 - scheduler stats
 - circuit state
+
+The product-readiness proof also includes a deterministic priority scheduling
+check showing that foreground inference jumps ahead of queued background work.
 
 ## Micro-Batching Benchmark
 

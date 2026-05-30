@@ -15,6 +15,7 @@ import { runProviderFailoverBenchmark, type ProviderFailoverBenchmarkResult } fr
 import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderSloBenchmark, type ProviderSloBenchmarkResult } from "./provider-slo-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
+import { runPrioritySchedulingBenchmark, type PrioritySchedulingBenchmarkResult } from "./priority-scheduling-runner.js";
 import { runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep, type SemanticSafetyBenchmarkResult, type SemanticThresholdSweepResult } from "./semantic-safety-runner.js";
 import { runCheapThenVerifyBenchmark, type CheapThenVerifyBenchmarkResult } from "./verifier-routing-runner.js";
 
@@ -45,6 +46,7 @@ export interface ReadinessBenchmarkReport {
     replay: BenchmarkResult[];
     runtimeCoalescing: LoadBenchmarkResult;
     microBatching: BatchBenchmarkResult;
+    priorityScheduling: PrioritySchedulingBenchmarkResult;
     providerFailover: ProviderFailoverBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
     adaptiveRouting: AdaptiveRoutingProof;
@@ -187,6 +189,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     perBatchOverheadMs: 10,
     perItemLatencyMs: 1,
   });
+  const priorityScheduling = await runPrioritySchedulingBenchmark();
   const providerFailover = await runProviderFailoverBenchmark({
     requests: 8,
     primaryFailuresBeforeSuccess: 8,
@@ -231,6 +234,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     toolOrContextReuseObserved: replay.some((r) => r.tool_result_reuse_rate > 0 || (r.context_block_reuse_rate ?? 0) > 0),
     runtimeCoalescingAvoidsCalls: runtimeCoalescing.avoidedProviderCalls > 0,
     microBatchingReducesLatency: microBatching.estimatedLatencyReduction > 0,
+    prioritySchedulingProtectsForegroundInference: priorityScheduling.passed && priorityScheduling.foregroundStartedBeforeBackground,
     runtimeCircuitBreakerFallsBackAfterPrimaryFailures:
       providerFailover.circuitOpened &&
       providerFailover.primaryProviderCalls === providerFailover.circuitFailureThreshold &&
@@ -293,6 +297,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       replay,
       runtimeCoalescing,
       microBatching,
+      priorityScheduling,
       providerFailover,
       mockThroughput,
       adaptiveRouting,
@@ -338,6 +343,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Estimated replay cost reduction: ${report.summary.estimatedReplayCostReductionPct}%`,
     `- Runtime avoided provider calls: ${report.summary.runtimeAvoidedProviderCalls}`,
     `- Micro-batching latency reduction: ${report.summary.batchingLatencyReductionPct}%`,
+    `- Priority scheduling: ${report.evidence.priorityScheduling.executionOrder.join(" -> ")}`,
     `- Provider failover: circuit=${report.evidence.providerFailover.circuitOpened}, fallback calls=${report.evidence.providerFailover.fallbackProviderCalls}, failed=${report.evidence.providerFailover.failedResponses}`,
     `- Mock output tokens/sec: ${report.summary.mockOutputTokensPerSecond}`,
     `- Groq live measured: ${report.summary.groqLiveMeasured}`,

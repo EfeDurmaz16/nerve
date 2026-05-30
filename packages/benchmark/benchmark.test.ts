@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runPrioritySchedulingBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -61,6 +61,13 @@ describe("TokenOps benchmark", () => {
     expect(result.largestBatch).toBe(4);
     expect(result.batchedWallTimeMs).toBeLessThan(result.baselineWallTimeMs);
     expect(result.estimatedLatencyReduction).toBeGreaterThan(0);
+  });
+
+  it("measures priority scheduling for foreground inference", async () => {
+    const result = await runPrioritySchedulingBenchmark();
+    expect(result.executionOrder).toEqual(["foreground", "background-1", "background-2"]);
+    expect(result.foregroundStartedBeforeBackground).toBe(true);
+    expect(result.passed).toBe(true);
   });
 
   it("measures provider throughput with token rate metrics", async () => {
@@ -174,6 +181,8 @@ describe("TokenOps benchmark", () => {
     expect(report.summary.estimatedReplayCostReductionPct).toBeGreaterThan(0);
     expect(report.evidence.runtimeCoalescing.avoidedProviderCalls).toBeGreaterThan(0);
     expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
+    expect(report.evidence.priorityScheduling.foregroundStartedBeforeBackground).toBe(true);
+    expect(report.passed.prioritySchedulingProtectsForegroundInference).toBe(true);
     expect(report.evidence.providerFailover.circuitOpened).toBe(true);
     expect(report.evidence.providerFailover.fallbackProviderCalls).toBe(report.evidence.providerFailover.requests);
     expect(report.evidence.providerFailover.failedResponses).toBe(0);

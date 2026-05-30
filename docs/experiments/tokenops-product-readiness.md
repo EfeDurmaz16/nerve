@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T19:01:34.135Z
+Generated: 2026-05-30T19:08:45.307Z
 
 ## Summary
 
@@ -12,6 +12,7 @@ Generated: 2026-05-30T19:01:34.135Z
 - Estimated replay cost reduction: 95.6%
 - Runtime avoided provider calls: 15
 - Micro-batching latency reduction: 0.9%
+- Priority scheduling: foreground -> background-1 -> background-2
 - Provider failover: circuit=true, fallback calls=8, failed=0
 - Mock output tokens/sec: 36000
 - Groq live measured: true
@@ -39,6 +40,7 @@ Generated: 2026-05-30T19:01:34.135Z
 - toolOrContextReuseObserved: true
 - runtimeCoalescingAvoidsCalls: true
 - microBatchingReducesLatency: true
+- prioritySchedulingProtectsForegroundInference: true
 - runtimeCircuitBreakerFallsBackAfterPrimaryFailures: true
 - mockThroughputMeasured: true
 - adaptiveRoutingDowngradesFromTraceEvidence: true

@@ -32,6 +32,31 @@ describe("TokenOps inference runtime", () => {
     await expect(queued).resolves.toBe("queued");
   });
 
+  it("runs higher-priority queued inference before lower-priority queued work", async () => {
+    const scheduler = new InferenceScheduler({ maxConcurrent: 1, maxQueue: 4 });
+    const order: string[] = [];
+    let release!: () => void;
+    const slow = scheduler.execute(() => new Promise<string>((resolve) => {
+      release = () => {
+        order.push("slow");
+        resolve("slow");
+      };
+    }));
+    const low = scheduler.execute(async () => {
+      order.push("low");
+      return "low";
+    }, { priority: 0 });
+    const high = scheduler.execute(async () => {
+      order.push("high");
+      return "high";
+    }, { priority: 10 });
+
+    release();
+    await expect(Promise.all([slow, low, high])).resolves.toEqual(["slow", "low", "high"]);
+    expect(order).toEqual(["slow", "high", "low"]);
+    expect(scheduler.stats().queuedByPriority).toEqual({});
+  });
+
   it("coalesces identical in-flight inference work", async () => {
     const runtime = new InferenceRuntime({ maxConcurrent: 4 });
     let calls = 0;

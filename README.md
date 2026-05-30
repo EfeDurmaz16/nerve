@@ -342,7 +342,7 @@ Production-like:
 - env-configurable max request cost, daily budget, daily user/agent quota, per-minute rate limit, and agent loop limiter
 - budget policy shadow mode for would-block rollout analysis
 - provider failure traces with redaction for common API key and authorization formats
-- inference runtime with concurrency admission, bounded queueing, provider circuit breaker, provider timeout aborts, and in-flight request coalescing
+- inference runtime with concurrency admission, priority-aware bounded queueing, provider circuit breaker, provider timeout aborts, and in-flight request coalescing
 - rolling SLO routing policy from local traces, with error-rate, p95 latency, and average cost thresholds
 - optional provider arbitrage with `TOKENOPS_PROVIDER_ARBITRAGE=1` and `TOKENOPS_PROVIDER_CANDIDATES=groq,openai,mock`
 - SLO rerouting benchmark that proves unhealthy providers are avoided when an eligible fallback exists
