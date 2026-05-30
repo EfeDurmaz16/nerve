@@ -86,6 +86,14 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
 
 This writes `docs/experiments/tokenops-product-readiness-report.json` and `docs/experiments/tokenops-product-readiness.md`.
 
+Inspect the local setup:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
+```
+
+The doctor command reports git/remote status, `.env` ignore safety, provider configuration presence, proof readiness, and whether the gateway port is already occupied. It does not print provider keys.
+
 Run a live direct-vs-gateway Groq comparison:
 
 ```bash

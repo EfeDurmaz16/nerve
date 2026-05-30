@@ -9,6 +9,7 @@ pnpm typecheck
 pnpm test
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 ```
 
 If `GROQ_API_KEY` is configured in `.env`, also run:

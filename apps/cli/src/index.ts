@@ -2,6 +2,7 @@ import { basename, resolve } from "node:path";
 import { homedir } from "node:os";
 import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import kleur from "kleur";
 import { openDb, insertTrace, listClusters, listPatches, updatePatchStatus, countTraces, getPatch } from "@nerve/store";
 import { compileTask } from "@nerve/planner";
@@ -26,6 +27,7 @@ import type { ModelProvider } from "@tokenops/providers";
 import { learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
 import { evaluateVerifierCases } from "@tokenops/verifier";
 import type { VerifierEvalCase } from "@tokenops/verifier";
+import { runDoctorCheck } from "./doctor.js";
 
 const DB_PATH = process.env.NERVE_DB ?? resolve(homedir(), ".nerve/nerve.db");
 const NERVE_DIR = resolve(homedir(), ".nerve");
@@ -46,6 +48,7 @@ usage:
   tokenops batch                         run local micro-batching throughput benchmark
   tokenops throughput [mock|ollama|groq] measure provider throughput and tokens/sec
   tokenops proof                         write product-readiness proof report
+  tokenops doctor                        inspect local setup, git hygiene, providers, and proof status
   tokenops stats                         show local DB stats
   tokenops trace <id>                    show trace lookup instructions
   tokenops cache stats                   show cache stats endpoint hint
@@ -98,6 +101,7 @@ async function main() {
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
     if (cmd === "throughput") return cmdTokenOpsThroughput(argv.slice(1));
     if (cmd === "proof") return cmdTokenOpsProof(argv.slice(1));
+    if (cmd === "doctor") return cmdTokenOpsDoctor();
     if (cmd === "demo") return cmdTokenOpsDemo();
     if (cmd === "stats") return cmdDb();
     if (cmd === "trace") return console.log(`GET http://127.0.0.1:${process.env.TOKENOPS_PORT ?? "8787"}/traces/${argv[1] ?? "<id>"}`);
@@ -231,6 +235,13 @@ async function cmdTokenOpsProof(args: string[]) {
   writeFileSync(mdPath, formatReadinessMarkdown(report));
   console.log(JSON.stringify({ reportPath: jsonPath, markdownPath: mdPath, summary: report.summary, passed: report.passed, gaps: report.gaps }, null, 2));
   if (!report.summary.readyForLocalDemo) process.exit(1);
+}
+
+async function cmdTokenOpsDoctor() {
+  const port = Number(process.env.TOKENOPS_PORT ?? process.env.NERVE_PORT ?? 8787);
+  const report = runDoctorCheck({ portInUse: await isPortInUse(port) });
+  console.log(JSON.stringify(report, null, 2));
+  if (report.status === "fail") process.exit(1);
 }
 
 async function cmdTokenOpsDemo() {
@@ -505,6 +516,17 @@ function judgmentForExpected(expected: VerifierEvalCase["expected"]): string {
   if (expected === "passed") return "PASS: dataset expected pass";
   if (expected === "failed") return "FAIL: dataset expected fail";
   return "UNCERTAIN: dataset expected uncertain";
+}
+
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolvePort) => {
+    const server = createServer();
+    server.once("error", () => resolvePort(true));
+    server.once("listening", () => {
+      server.close(() => resolvePort(false));
+    });
+    server.listen(port, "127.0.0.1");
+  });
 }
 
 class StaticJudgeProvider implements ModelProvider {

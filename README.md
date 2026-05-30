@@ -97,6 +97,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts demo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts serve
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare groq
@@ -118,6 +119,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops batch`
 - `tokenops throughput [mock|ollama|groq]`
 - `tokenops proof`
+- `tokenops doctor`
 - `tokenops stats`
 - `tokenops trace <id>`
 - `tokenops cache stats`
@@ -212,6 +214,14 @@ This writes:
 - `docs/experiments/tokenops-product-readiness.md`
 
 The report combines replay savings, runtime coalescing, micro-batching, mock throughput, optional live Groq throughput, pass/fail gates, and known gaps.
+
+Local setup doctor:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
+```
+
+This reports git/remote status, `.env` ignore safety, provider configuration presence, proof readiness, and whether the gateway port is already occupied. It never prints provider secret values.
 
 Before pushing or tagging, run the checklist in `docs/release-checklist.md`.
 
