@@ -523,6 +523,33 @@ Patches × evals → before/after delta. Output: `{baseline, candidates: [{patch
 
 ## SDK (TypeScript)
 
+TokenOps gateway client:
+
+```ts
+import { TokenOpsClient } from "@nerve/sdk-ts";
+
+const tokenops = new TokenOpsClient({ base_url: "http://127.0.0.1:8787" });
+
+const completion = await tokenops.chatCompletions(
+  {
+    model: "gpt-5-mini",
+    messages: [{ role: "user", content: "Explain the cache policy." }],
+  },
+  { idempotencyKey: "request-123" },
+);
+
+console.log(completion.choices[0].message.content);
+console.log(await tokenops.stats());
+console.log(await tokenops.cacheStats());
+```
+
+`TokenOpsClient` accepts either a gateway root URL such as `http://localhost:8787`
+or an OpenAI-style base URL such as `http://localhost:8787/v1`. It also exposes
+`chatCompletionsStream`, `budgetStatus`, `traces`, `trace`, and `policySimulate`
+helpers for local control-plane workflows.
+
+Legacy Nerve compiler client:
+
 ```ts
 import { NerveClient } from "@nerve/sdk-ts";
 

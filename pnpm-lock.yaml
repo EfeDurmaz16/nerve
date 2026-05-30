@@ -341,6 +341,9 @@ importers:
       '@nerve/ir':
         specifier: workspace:*
         version: link:../ir
+      '@tokenops/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/store:
     dependencies:

@@ -9,6 +9,7 @@ import type {
   PatchCandidate,
   VerifierSpec,
 } from "@nerve/ir";
+import type { BudgetPolicy, OpenAIChatCompletionRequest, RequestTrace } from "@tokenops/core";
 
 export interface NerveClientOpts {
   base_url?: string;
@@ -115,4 +116,125 @@ export class NerveClient {
       ...input,
     });
   }
+}
+
+export interface TokenOpsClientOpts {
+  base_url?: string;
+  token?: string;
+  fetch?: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+}
+
+export interface TokenOpsRequestOpts {
+  idempotencyKey?: string;
+}
+
+export interface OpenAIChatCompletionResponse {
+  id: string;
+  object: "chat.completion";
+  created?: number;
+  model?: string;
+  choices: Array<{
+    index: number;
+    message: { role: string; content: string | null; [key: string]: unknown };
+    finish_reason: string | null;
+  }>;
+  usage?: Record<string, unknown>;
+  tokenops?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface TokenOpsTraceList {
+  traces: RequestTrace[];
+}
+
+export class TokenOpsClient {
+  readonly base_url: string;
+  readonly token: string;
+  private readonly fetcher: (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
+  constructor(opts: TokenOpsClientOpts = {}) {
+    this.base_url = normalizeTokenOpsRoot(
+      opts.base_url ?? process.env.TOKENOPS_URL ?? process.env.OPENAI_BASE_URL ?? "http://localhost:8787",
+    );
+    this.token = opts.token ?? process.env.TOKENOPS_TOKEN ?? process.env.OPENAI_API_KEY ?? "";
+    this.fetcher = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  }
+
+  async chatCompletions(
+    request: OpenAIChatCompletionRequest,
+    opts: TokenOpsRequestOpts = {},
+  ): Promise<OpenAIChatCompletionResponse> {
+    return this.request<OpenAIChatCompletionResponse>("POST", "/v1/chat/completions", request, opts);
+  }
+
+  async chatCompletionsStream(
+    request: OpenAIChatCompletionRequest & { stream: true },
+    opts: TokenOpsRequestOpts = {},
+  ): Promise<string> {
+    const res = await this.fetcher(this.url("/v1/chat/completions"), {
+      method: "POST",
+      headers: this.headers(opts),
+      body: JSON.stringify(request),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`tokenops /v1/chat/completions ${res.status}: ${text}`);
+    return text;
+  }
+
+  stats<T = Record<string, unknown>>(): Promise<T> {
+    return this.request<T>("GET", "/stats");
+  }
+
+  cacheStats<T = Record<string, unknown>>(): Promise<T> {
+    return this.request<T>("GET", "/cache/stats");
+  }
+
+  budgetStatus<T = Record<string, unknown>>(): Promise<T> {
+    return this.request<T>("GET", "/budget/status");
+  }
+
+  traces(input: { limit?: number } = {}): Promise<TokenOpsTraceList> {
+    const search = input.limit === undefined ? "" : `?limit=${encodeURIComponent(String(input.limit))}`;
+    return this.request<TokenOpsTraceList>("GET", `/traces${search}`);
+  }
+
+  trace(id: string): Promise<RequestTrace> {
+    return this.request<RequestTrace>("GET", `/traces/${encodeURIComponent(id)}`);
+  }
+
+  policySimulate<T = Record<string, unknown>>(policy: Partial<BudgetPolicy>): Promise<T> {
+    return this.request<T>("POST", "/policy/simulate", { policy });
+  }
+
+  private async request<T>(
+    method: "GET" | "POST",
+    path: string,
+    body?: unknown,
+    opts: TokenOpsRequestOpts = {},
+  ): Promise<T> {
+    const res = await this.fetcher(this.url(path), {
+      method,
+      headers: this.headers(opts),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`tokenops ${path} ${res.status}: ${text}`);
+    return JSON.parse(text) as T;
+  }
+
+  private headers(opts: TokenOpsRequestOpts = {}): Record<string, string> {
+    return {
+      "content-type": "application/json",
+      ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
+      ...(opts.idempotencyKey ? { "idempotency-key": opts.idempotencyKey } : {}),
+    };
+  }
+
+  private url(path: string): string {
+    return `${this.base_url}${path}`;
+  }
+}
+
+function normalizeTokenOpsRoot(input: string): string {
+  return input.replace(/\/+$/, "").replace(/\/v1$/, "");
 }
