@@ -1,6 +1,7 @@
 import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
+import { detectAgentLoop, evaluateBudgetPolicy, type LoopSignal, type PolicyDecision } from "@tokenops/policy";
 import { FallbackProvider, MockProvider, type ModelProvider } from "@tokenops/providers";
 import { applyLearnedRouting, learnRoutingPolicy, type ModelRoute } from "@tokenops/router";
 import { cheapThenVerify } from "@tokenops/verifier";
@@ -40,6 +41,7 @@ export interface ReadinessBenchmarkReport {
     adaptiveRouting: AdaptiveRoutingProof;
     providerFallback: ProviderFallbackProof;
     verifierGate: VerifierGateProof;
+    policyControls: PolicyControlsProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -79,6 +81,13 @@ export interface VerifierGateProof {
   reason: string;
 }
 
+export interface PolicyControlsProof {
+  budget: PolicyDecision;
+  loop: LoopSignal;
+  repeatedTraceCount: number;
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -111,6 +120,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const adaptiveRouting = buildAdaptiveRoutingProof();
   const providerFallback = await buildProviderFallbackProof();
   const verifierGate = await buildVerifierGateProof();
+  const policyControls = buildPolicyControlsProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -125,6 +135,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     adaptiveRoutingDowngradesFromTraceEvidence: adaptiveRouting.baseRoute.selectedModel !== adaptiveRouting.learnedRoute.selectedModel && adaptiveRouting.learnedRoute.selectedModel === "gpt-5-mini",
     providerFallbackSurvivesPrimaryFailure: providerFallback.selectedProvider === "mock" && providerFallback.failedProviders.includes("groq"),
     verifierGateEscalatesFailedCheapAnswer: verifierGate.passCase.escalatedAfterFail === false && verifierGate.failCase.escalatedAfterFail === true && verifierGate.failCase.finalProvider === "strong",
+    policyControlsBlockWastefulCompute: policyControls.budget.action === "block" && policyControls.loop.action === "block",
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -150,6 +161,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       adaptiveRouting,
       providerFallback,
       verifierGate,
+      policyControls,
       groqThroughput,
     },
     passed,
@@ -184,6 +196,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Adaptive routing avoided cost/request: $${report.evidence.adaptiveRouting.estimatedAvoidedCostUsd}`,
     `- Provider fallback route: ${report.evidence.providerFallback.failedProviders.join(",") || "none"} -> ${report.evidence.providerFallback.selectedProvider}`,
     `- Verifier gate escalation: ${report.evidence.verifierGate.passCase.finalProvider} pass, ${report.evidence.verifierGate.failCase.finalProvider} after fail`,
+    `- Policy controls: budget ${report.evidence.policyControls.budget.action}, loop ${report.evidence.policyControls.loop.action}`,
     "",
     "## Gates",
     "",
@@ -194,6 +207,39 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildPolicyControlsProof(): PolicyControlsProof {
+  const request = normalizeChatCompletionRequest({
+    model: "gpt-5.5",
+    messages: [{ role: "user", content: "large request that should exceed the local budget proof cap" }],
+  }, { provider: "mock", workloadType: "agent_planning", riskLevel: "low" });
+  const budget = evaluateBudgetPolicy({
+    request,
+    estimate: { inputTokens: 1000, outputTokens: 1000, inputCostUsd: 0.25, outputCostUsd: 0.75, totalCostUsd: 1 },
+    policy: {
+      policy_id: "readiness-proof",
+      daily_budget_usd: 10,
+      max_request_cost_usd: 0.5,
+      max_model: "gpt-5.5",
+      allow_expensive_models: true,
+      block_on_budget_exceeded: true,
+      warn_threshold: 0.8,
+    },
+  });
+  const traces = Array.from({ length: 6 }, (_, index) => ({
+    ...routingTrace(`loop_${index}`, 0.001, "gpt-5-mini"),
+    workloadType: "agent_planning" as const,
+    agentId: "agent_readiness",
+    normalizedHash: "same-loop-hash",
+  }));
+  const loop = detectAgentLoop(traces, "agent_readiness");
+  return {
+    budget,
+    loop,
+    repeatedTraceCount: traces.length,
+    reason: "budget firewall blocks over-cap requests and loop limiter blocks repeated agent prompts before more compute is burned",
+  };
 }
 
 async function buildVerifierGateProof(): Promise<VerifierGateProof> {

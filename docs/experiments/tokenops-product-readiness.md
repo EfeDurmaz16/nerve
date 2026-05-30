@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:21:25.379Z
+Generated: 2026-05-30T15:23:32.090Z
 
 ## Summary
 
@@ -11,13 +11,14 @@ Generated: 2026-05-30T15:21:25.379Z
 - Optimized cost: $0.00569
 - Estimated replay cost reduction: 95.5%
 - Runtime avoided provider calls: 4
-- Micro-batching latency reduction: 0.7%
-- Mock output tokens/sec: 18000
+- Micro-batching latency reduction: 0.9%
+- Mock output tokens/sec: 24000
 - Groq live measured: false
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
 - Provider fallback route: groq -> mock
 - Verifier gate escalation: cheap pass, strong after fail
+- Policy controls: budget block, loop block
 
 ## Gates
 
@@ -30,6 +31,7 @@ Generated: 2026-05-30T15:21:25.379Z
 - adaptiveRoutingDowngradesFromTraceEvidence: true
 - providerFallbackSurvivesPrimaryFailure: true
 - verifierGateEscalatesFailedCheapAnswer: true
+- policyControlsBlockWastefulCompute: true
 - groqThroughputAvailableWhenRequested: true
 
 ## Gaps

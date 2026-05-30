@@ -115,6 +115,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.verifierGate.failCase.escalatedAfterFail).toBe(true);
     expect(report.evidence.verifierGate.failCase.finalProvider).toBe("strong");
     expect(report.passed.verifierGateEscalatesFailedCheapAnswer).toBe(true);
+    expect(report.evidence.policyControls.budget.action).toBe("block");
+    expect(report.evidence.policyControls.loop.action).toBe("block");
+    expect(report.passed.policyControlsBlockWastefulCompute).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });
