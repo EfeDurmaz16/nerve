@@ -214,7 +214,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
           minVerifierPassRate: Number(process.env.TOKENOPS_ROUTING_MIN_VERIFIER_PASS_RATE ?? 0.8),
         }),
         {
-          providerHealth: healthReport,
+      providerHealth: healthReport,
           minProviderHealthScore: Number(process.env.TOKENOPS_ROUTING_MIN_PROVIDER_HEALTH ?? 0),
         },
       );
@@ -511,7 +511,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
 
   app.get("/stats", async () => {
     const traces = state.traceStore.list(10_000);
-    return { ...gatewayStats(traces), provider_health: providerHealthReport(traces) };
+    return { ...gatewayStats(traces), provider_health: providerOperationsReport(traces) };
   });
   app.get("/traces", async (req) => ({ traces: state.traceStore.list(Number((req.query as { limit?: string }).limit ?? 100)) }));
   app.get("/traces/:id", async (req, reply) => {
@@ -547,7 +547,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     }
   });
   app.get("/rate-limit/status", async () => ({ per_minute: optionalInt("TOKENOPS_RATE_LIMIT_PER_MINUTE"), buckets: rateBuckets.size }));
-  app.get("/providers/health", async () => providerHealthReport(state.traceStore.list(10_000)));
+  app.get("/providers/health", async () => providerOperationsReport(state.traceStore.list(10_000)));
   app.get("/providers/attempts", async (req) => ({ attempts: listTokenOpsProviderAttempts(db, { limit: Number((req.query as { limit?: string }).limit ?? 100), traceId: (req.query as { trace?: string }).trace }) }));
   app.get("/runtime/stats", async () => runtime.stats());
   app.get("/routing/policy", async () => learnRoutingPolicy(state.traceStore.list(10_000), {
@@ -879,7 +879,26 @@ function readinessReport(input: { db: DB; dbPath: string; runtime: InferenceRunt
     db: input.dbPath,
     checks,
     stats: gatewayStats(traces),
-    provider_health: providerHealthReport(traces),
+    provider_health: providerOperationsReport(traces),
+  };
+}
+
+function providerOperationsReport(traces: RequestTrace[]) {
+  const health = providerHealthReport(traces);
+  const slo = learnSloRoutingPolicy(traces, sloPolicyOptionsFromEnv());
+  return {
+    ...health,
+    slo: {
+      generatedAt: slo.generatedAt,
+      windowSize: slo.windowSize,
+      maxErrorRate: slo.maxErrorRate,
+      maxP95LatencyMs: slo.maxP95LatencyMs,
+      maxAverageCostUsd: slo.maxAverageCostUsd,
+    },
+    providers: Object.fromEntries(Object.entries(health.providers).map(([provider, report]) => [
+      provider,
+      { ...report, slo: slo.providers[provider] },
+    ])),
   };
 }
 

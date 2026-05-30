@@ -146,7 +146,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
     if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
-    if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
+    if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth(argv.slice(2));
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
     if (cmd === "providers" && argv[1] === "usage") return cmdTokenOpsProvidersUsage(argv.slice(2));
     if (cmd === "verify" && argv[1] === "readiness") return cmdTokenOpsVerifyReadiness(argv.slice(2));
@@ -611,10 +611,38 @@ function cmdTokenOpsRoutingArbitrage(args: string[]) {
   }, null, 2));
 }
 
-function cmdTokenOpsProvidersHealth() {
+function cmdTokenOpsProvidersHealth(args: string[] = []) {
   const db = openDb(DB_PATH);
   const store = new SqliteTraceStore(db);
-  console.log(JSON.stringify(providerHealthReport(store.list(10_000)), null, 2));
+  const traces = store.list(Number(getOpt(args, "--limit") ?? 10_000));
+  console.log(JSON.stringify(providerOperationsReport(traces, {
+    windowSize: Number(getOpt(args, "--slo-window-size") ?? process.env.TOKENOPS_SLO_WINDOW_SIZE ?? 100),
+    maxErrorRate: Number(getOpt(args, "--slo-max-error-rate") ?? process.env.TOKENOPS_SLO_MAX_ERROR_RATE ?? 0.1),
+    maxP95LatencyMs: Number(getOpt(args, "--slo-max-p95-ms") ?? process.env.TOKENOPS_SLO_MAX_P95_LATENCY_MS ?? 10_000),
+    maxAverageCostUsd: Number(getOpt(args, "--slo-max-average-cost-usd") ?? process.env.TOKENOPS_SLO_MAX_AVERAGE_COST_USD ?? Number.MAX_SAFE_INTEGER),
+  }), null, 2));
+}
+
+function providerOperationsReport(
+  traces: Parameters<typeof providerHealthReport>[0],
+  sloOpts: Parameters<typeof learnSloRoutingPolicy>[1],
+) {
+  const health = providerHealthReport(traces);
+  const slo = learnSloRoutingPolicy(traces, sloOpts);
+  return {
+    ...health,
+    slo: {
+      generatedAt: slo.generatedAt,
+      windowSize: slo.windowSize,
+      maxErrorRate: slo.maxErrorRate,
+      maxP95LatencyMs: slo.maxP95LatencyMs,
+      maxAverageCostUsd: slo.maxAverageCostUsd,
+    },
+    providers: Object.fromEntries(Object.entries(health.providers).map(([provider, report]) => [
+      provider,
+      { ...report, slo: slo.providers[provider] },
+    ])),
+  };
 }
 
 function cmdTokenOpsProvidersAttempts(args: string[]) {

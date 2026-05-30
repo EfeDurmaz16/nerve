@@ -133,6 +133,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health --slo-max-p95-ms 1000
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers usage --out provider-usage.jsonl
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts policy simulate --daily-budget-usd 2 --max-request-cost-usd 0.01

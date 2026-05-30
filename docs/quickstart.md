@@ -220,6 +220,7 @@ Print provider health from local traces:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health --slo-max-p95-ms 1000
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers attempts
 ```
 

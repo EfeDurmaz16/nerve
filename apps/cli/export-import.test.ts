@@ -341,6 +341,25 @@ describe("tokenops snapshot CLI", () => {
     expect(result.route.selectedProvider).toBe("groq");
     expect(result.selectedHealth?.averageOptimizedCostUsd).toBe(0.01);
   });
+
+  it("prints provider health with local SLO eligibility", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-provider-health-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("groq_slow", 0.01, "groq", 20_000));
+    store.insert(trace("mock_ok", 0, "mock", 30));
+
+    const result = JSON.parse(execTokenOps([
+      "providers",
+      "health",
+      "--slo-max-p95-ms",
+      "1000",
+    ], dbPath)) as { providers: Record<string, { slo?: { eligible: boolean; reason: string } }> };
+
+    expect(result.providers.groq?.slo?.eligible).toBe(false);
+    expect(result.providers.groq?.slo?.reason).toContain("violates SLO");
+    expect(result.providers.mock?.slo?.eligible).toBe(true);
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {

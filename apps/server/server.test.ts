@@ -737,6 +737,13 @@ describe("TokenOps server", () => {
       const slo = (await app.inject({ method: "GET", url: "/routing/slo" })).json();
       expect(slo.providers.groq.eligible).toBe(false);
       expect(slo.providers.mock.eligible).toBe(true);
+      const health = (await app.inject({ method: "GET", url: "/providers/health" })).json();
+      expect(health.providers.groq.slo).toMatchObject({
+        eligible: false,
+        p95LatencyMs: 20000,
+      });
+      expect(health.providers.groq.slo.reason).toContain("violates SLO");
+      expect(health.providers.mock.slo).toMatchObject({ eligible: true });
       await app.close();
     });
   });
