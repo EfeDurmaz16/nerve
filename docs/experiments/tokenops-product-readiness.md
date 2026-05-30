@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T15:36:57.258Z
+Generated: 2026-05-30T15:39:46.821Z
 
 ## Summary
 
@@ -23,6 +23,7 @@ Generated: 2026-05-30T15:36:57.258Z
 - Cheaper analyzer: 3 insights, $0.0244 avoidable
 - Gateway compatibility: chat.completion, usage=true, tokenops=true
 - Trace ledger: 2 traces, savings=$0.018
+- AIS planner: exact=serve_exact_cache, semantic=serve_semantic_cache, budget=block_budget
 
 ## Gates
 
@@ -40,6 +41,7 @@ Generated: 2026-05-30T15:36:57.258Z
 - cheaperAnalyzerFindsAvoidableCompute: true
 - openAICompatibleGatewayShape: true
 - traceLedgerRecordsCostAndCacheEvidence: true
+- aisPlannerChoosesForegroundAndBackgroundActions: true
 - groqThroughputAvailableWhenRequested: true
 
 ## Gaps

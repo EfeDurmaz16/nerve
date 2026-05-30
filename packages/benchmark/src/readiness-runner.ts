@@ -1,4 +1,5 @@
-import type { BenchmarkResult, ModelResponse, NormalizedRequest } from "@tokenops/core";
+import { planCompute } from "@tokenops/ais";
+import type { BenchmarkResult, ComputePlan, ModelResponse, NormalizedRequest } from "@tokenops/core";
 import type { RequestTrace } from "@tokenops/core";
 import { normalizeChatCompletionRequest } from "@tokenops/core";
 import { toOpenAIChatCompletion } from "@tokenops/gateway";
@@ -49,6 +50,7 @@ export interface ReadinessBenchmarkReport {
     cheaperAnalyzer: CheaperAnalyzerProof;
     gatewayCompatibility: GatewayCompatibilityProof;
     traceLedger: TraceLedgerProof;
+    aisPlanner: AISPlannerProof;
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
@@ -132,6 +134,14 @@ export interface TraceLedgerProof {
   reason: string;
 }
 
+export interface AISPlannerProof {
+  exactCachePlan: ComputePlan;
+  semanticCachePlan: ComputePlan;
+  budgetBlockPlan: ComputePlan;
+  repeatedContextPlan: ComputePlan;
+  reason: string;
+}
+
 export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}): Promise<ReadinessBenchmarkReport> {
   const replay = await replayAll();
   const runtimeCoalescing = await runLoadBenchmark({
@@ -169,6 +179,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
   const cheaperAnalyzer = buildCheaperAnalyzerProof();
   const gatewayCompatibility = buildGatewayCompatibilityProof();
   const traceLedger = buildTraceLedgerProof();
+  const aisPlanner = buildAISPlannerProof();
 
   const baselineCostUsd = sum(replay.map((r) => r.baseline_cost));
   const optimizedCostUsd = sum(replay.map((r) => r.optimized_cost));
@@ -188,6 +199,13 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     cheaperAnalyzerFindsAvoidableCompute: cheaperAnalyzer.kinds.includes("overkill_model") && cheaperAnalyzer.kinds.includes("prefix_cache"),
     openAICompatibleGatewayShape: gatewayCompatibility.object === "chat.completion" && gatewayCompatibility.hasChoices && gatewayCompatibility.hasUsage && gatewayCompatibility.hasTokenOpsMetadata,
     traceLedgerRecordsCostAndCacheEvidence: traceLedger.storedTraceCount === 2 && traceLedger.exactCacheHitRate > 0 && traceLedger.estimatedSavings > 0,
+    aisPlannerChoosesForegroundAndBackgroundActions:
+      aisPlanner.exactCachePlan.foregroundAction === "serve_exact_cache" &&
+      aisPlanner.semanticCachePlan.foregroundAction === "serve_semantic_cache" &&
+      aisPlanner.semanticCachePlan.backgroundTasks.includes("verify_cached_answer") &&
+      aisPlanner.budgetBlockPlan.foregroundAction === "block_budget" &&
+      aisPlanner.repeatedContextPlan.contextStrategy.dedupeRepeatedContext &&
+      aisPlanner.repeatedContextPlan.backgroundTasks.includes("compress_trace"),
     groqThroughputAvailableWhenRequested: !opts.includeGroq || Boolean(groqThroughput && !groqThroughput.skipped && groqThroughput.errors === 0),
   };
 
@@ -218,6 +236,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       cheaperAnalyzer,
       gatewayCompatibility,
       traceLedger,
+      aisPlanner,
       groqThroughput,
     },
     passed,
@@ -257,6 +276,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Cheaper analyzer: ${report.evidence.cheaperAnalyzer.insightCount} insights, $${report.evidence.cheaperAnalyzer.estimatedAvoidableCostUsd} avoidable`,
     `- Gateway compatibility: ${report.evidence.gatewayCompatibility.object}, usage=${report.evidence.gatewayCompatibility.hasUsage}, tokenops=${report.evidence.gatewayCompatibility.hasTokenOpsMetadata}`,
     `- Trace ledger: ${report.evidence.traceLedger.storedTraceCount} traces, savings=$${report.evidence.traceLedger.estimatedSavings}`,
+    `- AIS planner: exact=${report.evidence.aisPlanner.exactCachePlan.foregroundAction}, semantic=${report.evidence.aisPlanner.semanticCachePlan.foregroundAction}, budget=${report.evidence.aisPlanner.budgetBlockPlan.foregroundAction}`,
     "",
     "## Gates",
     "",
@@ -288,6 +308,91 @@ function buildTraceLedgerProof(): TraceLedgerProof {
     estimatedOptimizedCost: roundMoney(stats.cost.optimizedCost),
     estimatedSavings: roundMoney(stats.cost.estimatedSavings),
     reason: "trace ledger stores request decisions and cost ledger summarizes cache/routing savings",
+  };
+}
+
+function buildAISPlannerProof(): AISPlannerProof {
+  const request = normalizeChatCompletionRequest({
+    model: "gpt-5.5",
+    messages: [
+      { role: "system", content: "You are answering stable TokenOps documentation questions." },
+      { role: "user", content: "Explain how the adaptive inference control plane chooses cache vs model calls." },
+    ],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "docs_retrieve",
+          description: "Retrieve stable documentation blocks by query.",
+          parameters: { type: "object", properties: { query: { type: "string" } } },
+        },
+      },
+    ],
+  }, { provider: "groq", workloadType: "docs_qa", riskLevel: "low" });
+  const route: ModelRoute = {
+    selectedProvider: "groq",
+    selectedModel: "gpt-5-mini",
+    originalRequestedModel: "gpt-5.5",
+    downgraded: true,
+    escalated: false,
+    fallback: "mock",
+    reason: "docs Q&A can use cheaper model with fallback",
+  };
+  const allowed: PolicyDecision = {
+    allowed: true,
+    action: "allow",
+    reason: "budget policy allowed request",
+    budgetRemaining: 9.5,
+  };
+  const blocked: PolicyDecision = {
+    allowed: false,
+    action: "block",
+    reason: "request exceeded max_request_cost_usd",
+    budgetRemaining: 0,
+  };
+
+  return {
+    exactCachePlan: planCompute({
+      request,
+      exactHit: true,
+      semanticHit: false,
+      prefixCacheEligibleTokens: 0,
+      route,
+      policy: allowed,
+      expectedCostUsd: 0.002,
+      riskLevel: "low",
+    }),
+    semanticCachePlan: planCompute({
+      request,
+      exactHit: false,
+      semanticHit: true,
+      prefixCacheEligibleTokens: 500,
+      route,
+      policy: allowed,
+      expectedCostUsd: 0.002,
+      riskLevel: "low",
+    }),
+    budgetBlockPlan: planCompute({
+      request,
+      exactHit: false,
+      semanticHit: false,
+      prefixCacheEligibleTokens: 0,
+      route,
+      policy: blocked,
+      expectedCostUsd: 0.25,
+      riskLevel: "medium",
+    }),
+    repeatedContextPlan: planCompute({
+      request,
+      exactHit: false,
+      semanticHit: false,
+      prefixCacheEligibleTokens: 2400,
+      route,
+      policy: allowed,
+      expectedCostUsd: 0.002,
+      riskLevel: "medium",
+    }),
+    reason: "AIS maps cache hits, semantic reuse, budget blocks, and repeated context into foreground actions and background tasks",
   };
 }
 

@@ -133,6 +133,13 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.traceLedger.estimatedSavings).toBeGreaterThan(0);
     expect(report.evidence.traceLedger.exactCacheHitRate).toBeGreaterThan(0);
     expect(report.passed.traceLedgerRecordsCostAndCacheEvidence).toBe(true);
+    expect(report.evidence.aisPlanner.exactCachePlan.foregroundAction).toBe("serve_exact_cache");
+    expect(report.evidence.aisPlanner.semanticCachePlan.foregroundAction).toBe("serve_semantic_cache");
+    expect(report.evidence.aisPlanner.semanticCachePlan.backgroundTasks).toContain("verify_cached_answer");
+    expect(report.evidence.aisPlanner.budgetBlockPlan.foregroundAction).toBe("block_budget");
+    expect(report.evidence.aisPlanner.repeatedContextPlan.contextStrategy.dedupeRepeatedContext).toBe(true);
+    expect(report.evidence.aisPlanner.repeatedContextPlan.backgroundTasks).toContain("compress_trace");
+    expect(report.passed.aisPlannerChoosesForegroundAndBackgroundActions).toBe(true);
     expect(report.gaps.length).toBeGreaterThan(0);
   });
 });
