@@ -30,7 +30,7 @@ import type { BudgetPolicy, ModelResponse, NormalizedRequest } from "@tokenops/c
 import { formatOtelSpansJsonl, providerHealthReport, reconcileProviderUsage, SqliteTraceStore, type ProviderUsageRecord, exportTracesAsOtelSpans } from "@tokenops/ledger";
 import { simulateBudgetPolicy } from "@tokenops/policy";
 import type { ModelProvider } from "@tokenops/providers";
-import { learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
+import { applyProviderArbitrage, learnRoutingPolicy, learnSloRoutingPolicy } from "@tokenops/router";
 import { evaluateVerifierCases } from "@tokenops/verifier";
 import type { VerifierEvalCase } from "@tokenops/verifier";
 import { runDoctorCheck } from "./doctor.js";
@@ -72,6 +72,7 @@ usage:
   tokenops routing policy                learn and print routing policy from local traces
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
+  tokenops routing arbitrage             choose cheapest healthy provider from local traces
   tokenops providers health              score provider health from local traces
   tokenops providers attempts            list provider call attempts from local DB
   tokenops verify eval [--dataset file]  run verifier eval harness
@@ -137,6 +138,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "policy") return cmdTokenOpsRoutingPolicy();
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
+    if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
@@ -393,6 +395,36 @@ function cmdTokenOpsRoutingSloBenchmark() {
   const result = runProviderSloBenchmark();
   console.log(JSON.stringify(result, null, 2));
   if (!result.passed) process.exit(1);
+}
+
+function cmdTokenOpsRoutingArbitrage(args: string[]) {
+  const provider = getOpt(args, "--provider") ?? process.env.TOKENOPS_PROVIDER ?? "mock";
+  const selectedModel = getOpt(args, "--model") ?? "gpt-5-mini";
+  const originalRequestedModel = getOpt(args, "--requested-model") ?? "gpt-5.5";
+  const candidates = (getOpt(args, "--candidates") ?? process.env.TOKENOPS_PROVIDER_CANDIDATES ?? provider)
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const health = providerHealthReport(new SqliteTraceStore(openDb(DB_PATH)).list(Number(getOpt(args, "--limit") ?? 10_000)));
+  const baseRoute = {
+    selectedProvider: provider,
+    selectedModel,
+    originalRequestedModel,
+    downgraded: originalRequestedModel !== selectedModel,
+    escalated: false,
+    reason: "cli provider arbitrage base route",
+  };
+  const route = applyProviderArbitrage(baseRoute, health, {
+    candidates,
+    minHealthScore: Number(getOpt(args, "--min-health") ?? process.env.TOKENOPS_PROVIDER_ARBITRAGE_MIN_HEALTH ?? 0.8),
+    maxP95LatencyMs: Number(getOpt(args, "--max-p95-ms") ?? process.env.TOKENOPS_PROVIDER_ARBITRAGE_MAX_P95_MS ?? Number.MAX_SAFE_INTEGER),
+  });
+  console.log(JSON.stringify({
+    candidates,
+    route,
+    selectedHealth: health.providers[route.selectedProvider] ?? null,
+    providerHealth: health,
+  }, null, 2));
 }
 
 function cmdTokenOpsProvidersHealth() {

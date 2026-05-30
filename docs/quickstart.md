@@ -190,6 +190,9 @@ Print the learned routing policy from local traces:
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo-benchmark
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing arbitrage \
+  --provider groq \
+  --candidates groq,openai,mock
 ```
 
 `routing slo-benchmark` uses synthetic provider traces to verify that an unhealthy provider is rerouted to an eligible fallback.

@@ -116,6 +116,34 @@ describe("tokenops snapshot CLI", () => {
     expect(result.thresholds).toHaveLength(3);
     expect(result.recommendedThreshold).not.toBeNull();
   });
+
+  it("prints provider arbitrage route from local TokenOps traces", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-arbitrage-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert(trace("openai_1", 0.04, "openai", 700));
+    store.insert(trace("openai_2", 0.04, "openai", 650));
+    store.insert(trace("groq_1", 0.01, "groq", 300));
+    store.insert(trace("groq_2", 0.01, "groq", 320));
+    store.insert(trace("mock_bad_1", 0, "mock", 30, false));
+    store.insert(trace("mock_bad_2", 0, "mock", 25, false));
+
+    const result = JSON.parse(execTokenOps([
+      "routing",
+      "arbitrage",
+      "--provider",
+      "openai",
+      "--candidates",
+      "openai,groq,mock",
+      "--min-health",
+      "0.8",
+      "--max-p95-ms",
+      "1000",
+    ], dbPath)) as { route: { selectedProvider: string }; selectedHealth?: { averageOptimizedCostUsd: number } };
+
+    expect(result.route.selectedProvider).toBe("groq");
+    expect(result.selectedHealth?.averageOptimizedCostUsd).toBe(0.01);
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {
@@ -126,7 +154,13 @@ function execTokenOps(args: string[], dbPath: string): string {
   });
 }
 
-function trace(id: string, baseline: number): RequestTrace {
+function trace(
+  id: string,
+  baseline: number,
+  provider = "mock",
+  latency = 50,
+  verifierPassed = true,
+): RequestTrace {
   return {
     id,
     timestamp: "2026-05-30T00:00:00.000Z",
@@ -134,13 +168,15 @@ function trace(id: string, baseline: number): RequestTrace {
     userId: "cli-user",
     requestedModel: "gpt-5.5",
     selectedModel: "gpt-5.5",
-    selectedProvider: "mock",
+    selectedProvider: provider,
     inputTokensEstimated: 100,
     outputTokensEstimated: 50,
+    providerLatencyMs: latency,
     cache: { exactHit: false, semanticHit: false, toolResultHit: false, contextBlockHit: false, prefixCacheEligibleTokens: 0 },
-    routing: { selectedProvider: "mock", selectedModel: "gpt-5.5", originalRequestedModel: "gpt-5.5", downgraded: false, escalated: false, reason: "fixture" },
+    routing: { selectedProvider: provider, selectedModel: "gpt-5.5", originalRequestedModel: "gpt-5.5", downgraded: false, escalated: false, reason: "fixture" },
     policy: { allowed: true, reason: "fixture" },
     cost: { estimatedBaselineCost: baseline, estimatedOptimizedCost: baseline, estimatedSavings: 0 },
+    quality: { verifierUsed: true, verifierPassed },
     normalizedHash: id,
     finalResponseSource: "model",
   };

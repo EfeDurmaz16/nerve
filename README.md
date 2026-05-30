@@ -161,6 +161,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops routing policy`
 - `tokenops routing slo`
 - `tokenops routing slo-benchmark`
+- `tokenops routing arbitrage --provider <name> --candidates groq,openai,mock`
 - `tokenops providers health`
 - `tokenops providers attempts`
 - `tokenops verify eval`
