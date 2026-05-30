@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { describe, expect, it } from "vitest";
-import { openDb } from "@nerve/store";
+import { insertTokenOpsProviderAttempt, openDb } from "@nerve/store";
 import type { RequestTrace } from "@tokenops/core";
 import { SqliteTraceStore } from "@tokenops/ledger";
 import { createApp } from "../server/src/index.js";
@@ -91,6 +91,35 @@ describe("tokenops snapshot CLI", () => {
     expect(report.totalUsageRecords).toBe(1);
     expect(report.drifted).toBe(1);
     expect(report.deltaUsd).toBeCloseTo(0.000972);
+  });
+
+  it("exports provider attempts as reconciliation usage JSONL", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-provider-usage-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    insertTokenOpsProviderAttempt(openDb(dbPath), {
+      id: "att_usage",
+      trace_id: "tr_usage",
+      request_hash: "hash_usage",
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      ok: true,
+      latency_ms: 25,
+      input_tokens: 42,
+      output_tokens: 4,
+      estimated_cost_usd: 0.000028,
+      created_at: "2026-01-01T00:00:00.000Z",
+    });
+
+    const output = execTokenOps(["providers", "usage"], dbPath).trim();
+    expect(JSON.parse(output)).toMatchObject({
+      provider: "groq",
+      model: "llama-3.3-70b-versatile",
+      trace_id: "tr_usage",
+      request_hash: "hash_usage",
+      input_tokens: 42,
+      output_tokens: 4,
+      actual_cost_usd: 0.000028,
+    });
   });
 
   it("exports local TokenOps traces as OpenTelemetry JSONL", () => {

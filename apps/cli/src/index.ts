@@ -78,6 +78,7 @@ usage:
   tokenops routing arbitrage             choose cheapest healthy provider from local traces
   tokenops providers health              score provider health from local traces
   tokenops providers attempts            list provider call attempts from local DB
+  tokenops providers usage               export successful provider attempts as usage JSONL
   tokenops verify readiness              run local-safe readiness manifest checks
   tokenops verify eval [--dataset file]  run verifier eval harness
   tokenops verify routing [dataset]      run cheap-then-verify routing eval
@@ -147,6 +148,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth();
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
+    if (cmd === "providers" && argv[1] === "usage") return cmdTokenOpsProvidersUsage(argv.slice(2));
     if (cmd === "verify" && argv[1] === "readiness") return cmdTokenOpsVerifyReadiness(argv.slice(2));
     if (cmd === "verify" && argv[1] === "eval") return cmdTokenOpsVerifyEval();
     if (cmd === "verify" && argv[1] === "routing") return cmdTokenOpsVerifyRouting(argv.slice(2));
@@ -617,6 +619,31 @@ function cmdTokenOpsProvidersHealth() {
 function cmdTokenOpsProvidersAttempts(args: string[]) {
   const db = openDb(DB_PATH);
   console.log(JSON.stringify({ attempts: listTokenOpsProviderAttempts(db, { limit: Number(getOpt(args, "--limit") ?? 100), traceId: getOpt(args, "--trace") }) }, null, 2));
+}
+
+function cmdTokenOpsProvidersUsage(args: string[]) {
+  const db = openDb(DB_PATH);
+  const attempts = listTokenOpsProviderAttempts(db, { limit: Number(getOpt(args, "--limit") ?? 10_000), traceId: getOpt(args, "--trace") });
+  const output = attempts
+    .filter((attempt) => attempt.ok && attempt.input_tokens !== undefined && attempt.output_tokens !== undefined && attempt.estimated_cost_usd !== undefined)
+    .map((attempt) => JSON.stringify({
+      provider: attempt.provider,
+      model: attempt.model,
+      trace_id: attempt.trace_id,
+      request_hash: attempt.request_hash,
+      input_tokens: attempt.input_tokens,
+      output_tokens: attempt.output_tokens,
+      actual_cost_usd: attempt.estimated_cost_usd,
+    }))
+    .join("\n");
+  const finalOutput = output ? `${output}\n` : "";
+  const out = getOpt(args, "--out");
+  if (out) {
+    writeFileSync(resolve(out), finalOutput);
+    console.log(kleur.green(`✓ exported provider usage JSONL to ${resolve(out)}`));
+    return;
+  }
+  process.stdout.write(finalOutput);
 }
 
 function cmdTokenOpsPolicySimulate(args: string[]) {
