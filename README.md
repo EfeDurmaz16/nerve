@@ -60,6 +60,7 @@ Implemented endpoints:
 - `POST /v1/responses`
 - `POST /v1/embeddings`
 - `GET /health`
+- `GET /ready`
 - `GET /stats`
 - `GET /traces`
 - `GET /traces/:id`

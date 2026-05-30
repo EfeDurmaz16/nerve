@@ -109,6 +109,7 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
   app.addHook("onRequest", async (req, reply) => {
     if (!TOKEN) return;
     if (req.url.startsWith("/health")) return;
+    if (req.url.startsWith("/ready")) return;
     const hdr = req.headers.authorization ?? "";
     if (hdr !== `Bearer ${TOKEN}`) return reply.code(401).send({ error: "unauthorized" });
   });
@@ -136,6 +137,11 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
   }
 
   app.get("/health", async () => ({ ok: true, product: "TokenOps", db: dbPath, traces: countTraces(db) }));
+  app.get("/ready", async (_req, reply) => {
+    const report = readinessReport({ db, dbPath, runtime, state });
+    if (!report.ready) return reply.code(503).send(report);
+    return report;
+  });
 
   app.post("/v1/chat/completions", async (req, reply) => {
     const wantsStream = Boolean((req.body as { stream?: boolean } | undefined)?.stream);
@@ -820,6 +826,60 @@ function runtimeFromEnv(): InferenceRuntime {
     circuitFailureThreshold: optionalInt("TOKENOPS_CIRCUIT_FAILURE_THRESHOLD") ?? 3,
     circuitCooldownMs: optionalInt("TOKENOPS_CIRCUIT_COOLDOWN_MS") ?? 30_000,
   });
+}
+
+function readinessReport(input: { db: DB; dbPath: string; runtime: InferenceRuntime; state: AppState }) {
+  const runtimeStats = input.runtime.stats();
+  const provider = selectedProviderName();
+  const checks: Record<string, { ok: boolean; [key: string]: unknown }> = {};
+  let traces: RequestTrace[] = [];
+
+  try {
+    checks.database = { ok: true, path: input.dbPath, traces: countTraces(input.db) };
+  } catch (error) {
+    checks.database = { ok: false, path: input.dbPath, error: (error as Error).message };
+  }
+
+  try {
+    traces = input.state.traceStore.list(10_000);
+    checks.trace_store = { ok: true, sample_count: traces.length };
+  } catch (error) {
+    checks.trace_store = { ok: false, error: (error as Error).message };
+  }
+
+  try {
+    const exact = input.state.exactCache.stats();
+    const semantic = input.state.semanticCache.stats();
+    const tool = input.state.toolResultCache.stats();
+    const context = input.state.contextBlockCache.stats();
+    checks.cache = { ok: true, exact, semantic, tool, context };
+  } catch (error) {
+    checks.cache = { ok: false, error: (error as Error).message };
+  }
+
+  checks.runtime = {
+    ok: runtimeStats.scheduler.maxConcurrent > 0,
+    scheduler: runtimeStats.scheduler,
+    coalescer: runtimeStats.coalescer,
+    circuits: runtimeStats.circuits,
+  };
+  checks.provider = {
+    ok: provider.length > 0,
+    selected: provider,
+    chain: provider.split(",").map((name) => name.trim()).filter(Boolean),
+  };
+
+  const ready = Object.values(checks).every((check) => check.ok);
+  return {
+    ok: ready,
+    ready,
+    status: ready ? "ready" : "degraded",
+    product: "TokenOps",
+    db: input.dbPath,
+    checks,
+    stats: gatewayStats(traces),
+    provider_health: providerHealthReport(traces),
+  };
 }
 
 function sloPolicyOptionsFromEnv(): Parameters<typeof learnSloRoutingPolicy>[1] {

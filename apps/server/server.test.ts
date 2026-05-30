@@ -64,6 +64,33 @@ describe("TokenOps server", () => {
     });
   });
 
+  it("exposes readiness with runtime, provider, cache, and trace checks", async () => {
+    await withProvider("mock", async () => {
+      const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
+      const initial = await app.inject({ method: "GET", url: "/ready" });
+      expect(initial.statusCode).toBe(200);
+      expect(initial.json()).toMatchObject({
+        ready: true,
+        status: "ready",
+        product: "TokenOps",
+        checks: {
+          database: { ok: true },
+          trace_store: { ok: true },
+          cache: { ok: true },
+          provider: { ok: true, selected: "mock" },
+          runtime: { ok: true },
+        },
+      });
+
+      await app.inject({ method: "POST", url: "/v1/chat/completions", payload: { model: "mock", messages: [{ role: "user", content: "ready endpoint proof" }] } });
+      const afterRequest = (await app.inject({ method: "GET", url: "/ready" })).json();
+      expect(afterRequest.stats.requests).toBe(1);
+      expect(afterRequest.provider_health.providers.mock.requests).toBe(1);
+      expect(afterRequest.checks.runtime.scheduler.maxConcurrent).toBeGreaterThan(0);
+      await app.close();
+    });
+  });
+
   it("runs replay through the local HTTP API and stores benchmark results", async () => {
     const app = createApp({ db: openDb(":memory:"), dbPath: ":memory:" });
     const replay = await app.inject({

@@ -263,6 +263,7 @@ pnpm --filter @nerve/server start
 Inspect policy state:
 
 ```bash
+curl -sS http://127.0.0.1:8787/ready
 curl -sS http://127.0.0.1:8787/budget/status
 curl -sS -X POST http://127.0.0.1:8787/policy/simulate \
   -H 'content-type: application/json' \

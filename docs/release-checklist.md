@@ -54,6 +54,7 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput ollama --requests 8 --co
 A local demo is acceptable when:
 
 - `tokenops proof` reports `readyForLocalDemo: true`.
+- Running gateway returns `ready: true` from `GET /ready`.
 - Replay benchmark shows cost reduction across all bundled datasets.
 - Runtime coalescing avoids at least one provider call.
 - HTTP gateway smoke proves OpenAI-compatible chat, exact cache, runtime stats, and optional admission control.
