@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:40:32.959Z",
+  "generatedAt": "2026-05-30T18:58:17.325Z",
   "hypothesis": {
     "directGroq": "Two identical direct requests make two provider calls.",
     "tokenops": "Two identical gateway requests make one provider call and one exact-cache hit."
@@ -8,8 +8,8 @@
   "direct": {
     "providerCalls": 2,
     "ids": [
-      "chatcmpl-28592cd3-5cc7-434a-b202-8c1d3770f943",
-      "chatcmpl-98e2113a-128c-45cf-8dd5-94de6b8ed14d"
+      "chatcmpl-66700298-488e-4015-a96f-871e8e1bb348",
+      "chatcmpl-afb8aa1e-fe81-4fda-9417-db87805f92a5"
     ],
     "contents": [
       "TokenOps comparison live",
@@ -20,8 +20,8 @@
   "tokenops": {
     "providerCallsObserved": 1,
     "traceIds": [
-      "tr_01KSWRPK5PYZM1GE02JG725AY7",
-      "tr_01KSWRPK9WSF7JMGQ99JPHRKZ8"
+      "tr_01KSX40NDR2R03Q569HCDP2273",
+      "tr_01KSX40NJGQ6MGJP7B91J12TTF"
     ],
     "exactHits": [
       false,
@@ -51,7 +51,7 @@
         "byAgent": {}
       },
       "provider_health": {
-        "generatedAt": "2026-05-30T15:40:32.958Z",
+        "generatedAt": "2026-05-30T18:58:17.321Z",
         "providers": {
           "groq": {
             "provider": "groq",
@@ -59,7 +59,7 @@
             "blockedRate": 0,
             "verifierPassRate": 1,
             "averageOptimizedCostUsd": 0.000207,
-            "p95LatencyMs": 121,
+            "p95LatencyMs": 135,
             "cacheHitRate": 0.5,
             "healthScore": 0.9248
           }

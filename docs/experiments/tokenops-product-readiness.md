@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T18:49:01.552Z
+Generated: 2026-05-30T18:58:24.764Z
 
 ## Summary
 
@@ -10,10 +10,10 @@ Generated: 2026-05-30T18:49:01.552Z
 - Baseline cost: $0.127855
 - Optimized cost: $0.005666
 - Estimated replay cost reduction: 95.6%
-- Runtime avoided provider calls: 5
-- Micro-batching latency reduction: 0.8%
+- Runtime avoided provider calls: 15
+- Micro-batching latency reduction: 0.9%
 - Provider failover: circuit=true, fallback calls=8, failed=0
-- Mock output tokens/sec: 9600
+- Mock output tokens/sec: 28800
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098

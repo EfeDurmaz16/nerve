@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T18:49:01.552Z",
+  "generatedAt": "2026-05-30T18:58:24.764Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -7,9 +7,9 @@
     "baselineCostUsd": 0.127855,
     "optimizedCostUsd": 0.005666,
     "estimatedReplayCostReductionPct": 95.6,
-    "runtimeAvoidedProviderCalls": 5,
-    "batchingLatencyReductionPct": 0.8,
-    "mockOutputTokensPerSecond": 9600,
+    "runtimeAvoidedProviderCalls": 15,
+    "batchingLatencyReductionPct": 0.9,
+    "mockOutputTokensPerSecond": 28800,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -148,29 +148,29 @@
       }
     ],
     "runtimeCoalescing": {
-      "requests": 10,
-      "concurrency": 4,
+      "requests": 30,
+      "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 31,
-      "providerCalls": 5,
-      "coalescedResponses": 5,
-      "avoidedProviderCalls": 5,
-      "p50LatencyMs": 10,
-      "p95LatencyMs": 11,
+      "wallTimeMs": 29,
+      "providerCalls": 15,
+      "coalescedResponses": 15,
+      "avoidedProviderCalls": 15,
+      "p50LatencyMs": 9,
+      "p95LatencyMs": 10,
       "runtime": {
         "scheduler": {
-          "maxConcurrent": 4,
-          "maxQueue": 10,
+          "maxConcurrent": 10,
+          "maxQueue": 30,
           "inFlight": 0,
           "queued": 0,
-          "admitted": 5,
+          "admitted": 15,
           "rejected": 0,
-          "completed": 5
+          "completed": 15
         },
         "coalescer": {
-          "sharedCalls": 5,
-          "coalescedWaiters": 5,
+          "sharedCalls": 15,
+          "coalescedWaiters": 15,
           "inFlightKeys": 0
         },
         "circuits": {
@@ -183,25 +183,25 @@
       }
     },
     "microBatching": {
-      "requests": 8,
+      "requests": 24,
       "batchSize": 6,
       "batchWindowMs": 2,
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
-      "baselineWallTimeMs": 88,
-      "batchedWallTimeMs": 17,
-      "estimatedLatencyReduction": 0.8068,
-      "batches": 2,
+      "baselineWallTimeMs": 264,
+      "batchedWallTimeMs": 19,
+      "estimatedLatencyReduction": 0.928,
+      "batches": 4,
       "largestBatch": 6,
-      "averageBatchSize": 4,
+      "averageBatchSize": 6,
       "runtime": {
         "maxBatchSize": 6,
         "maxDelayMs": 2,
         "queued": 0,
-        "batches": 2,
-        "items": 8,
+        "batches": 4,
+        "items": 24,
         "largestBatch": 6,
-        "averageBatchSize": 4
+        "averageBatchSize": 6
       }
     },
     "providerFailover": {
@@ -215,8 +215,8 @@
       "circuitRejectedRequests": 6,
       "fallbackRecoveries": 8,
       "circuitOpened": true,
-      "p50LatencyMs": 1,
-      "p95LatencyMs": 2,
+      "p50LatencyMs": 2,
+      "p95LatencyMs": 3,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 1,
@@ -236,7 +236,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780167001032,
+            "openedUntil": 1780167564133,
             "halfOpenInFlight": 0
           }
         }
@@ -246,31 +246,31 @@
       "provider": "mock",
       "model": "mock",
       "skipped": false,
-      "requests": 2,
-      "concurrency": 1,
-      "wallTimeMs": 5,
-      "providerCalls": 2,
-      "totalInputTokens": 80,
-      "totalOutputTokens": 48,
-      "totalTokens": 128,
-      "outputTokensPerSecond": 9600,
-      "totalTokensPerSecond": 25600,
+      "requests": 12,
+      "concurrency": 4,
+      "wallTimeMs": 10,
+      "providerCalls": 12,
+      "totalInputTokens": 480,
+      "totalOutputTokens": 288,
+      "totalTokens": 768,
+      "outputTokensPerSecond": 28800,
+      "totalTokensPerSecond": 76800,
       "p50LatencyMs": 3,
-      "p95LatencyMs": 3,
+      "p95LatencyMs": 4,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
         "scheduler": {
-          "maxConcurrent": 1,
-          "maxQueue": 2,
+          "maxConcurrent": 4,
+          "maxQueue": 12,
           "inFlight": 0,
           "queued": 0,
-          "admitted": 2,
+          "admitted": 12,
           "rejected": 0,
-          "completed": 2
+          "completed": 12
         },
         "coalescer": {
-          "sharedCalls": 2,
+          "sharedCalls": 12,
           "coalescedWaiters": 0,
           "inFlightKeys": 0
         },
@@ -315,7 +315,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T18:49:01.509Z",
+        "generatedAt": "2026-05-30T18:58:24.715Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -1383,7 +1383,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
+        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1409,7 +1409,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
+        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1438,7 +1438,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
+        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1466,7 +1466,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX3FPVG4TY424CJFKFQX08T",
+        "requestId": "req_01KSX40WVWXYXB4DXENR3B1ZPR",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1501,31 +1501,31 @@
       "provider": "groq",
       "model": "llama-3.3-70b-versatile",
       "skipped": false,
-      "requests": 2,
-      "concurrency": 1,
-      "wallTimeMs": 460,
-      "providerCalls": 2,
-      "totalInputTokens": 120,
-      "totalOutputTokens": 54,
-      "totalTokens": 174,
-      "outputTokensPerSecond": 117.39,
-      "totalTokensPerSecond": 378.26,
-      "p50LatencyMs": 287,
-      "p95LatencyMs": 287,
+      "requests": 4,
+      "concurrency": 2,
+      "wallTimeMs": 555,
+      "providerCalls": 4,
+      "totalInputTokens": 240,
+      "totalOutputTokens": 110,
+      "totalTokens": 350,
+      "outputTokensPerSecond": 198.2,
+      "totalTokensPerSecond": 630.63,
+      "p50LatencyMs": 274,
+      "p95LatencyMs": 377,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
         "scheduler": {
-          "maxConcurrent": 1,
-          "maxQueue": 2,
+          "maxConcurrent": 2,
+          "maxQueue": 4,
           "inFlight": 0,
           "queued": 0,
-          "admitted": 2,
+          "admitted": 4,
           "rejected": 0,
-          "completed": 2
+          "completed": 4
         },
         "coalescer": {
-          "sharedCalls": 2,
+          "sharedCalls": 4,
           "coalescedWaiters": 0,
           "inFlightKeys": 0
         },
