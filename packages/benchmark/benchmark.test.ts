@@ -186,6 +186,8 @@ describe("TokenOps benchmark", () => {
       includeGroq: false,
     });
     expect(report.summary.readyForLocalDemo).toBe(true);
+    expect(report.verification.find((entry) => entry.area === "http-gateway-smoke")?.command).toContain("gateway smoke");
+    expect(report.verification.filter((entry) => entry.requiredForDemo).length).toBeGreaterThan(0);
     expect(report.summary.totalReplayRequests).toBeGreaterThan(0);
     expect(report.summary.estimatedReplayCostReductionPct).toBeGreaterThan(0);
     expect(report.evidence.runtimeCoalescing.avoidedProviderCalls).toBeGreaterThan(0);

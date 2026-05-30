@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T19:26:56.181Z",
+  "generatedAt": "2026-05-30T19:48:08.744Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 15,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 32000,
+    "mockOutputTokensPerSecond": 36000,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,11 +152,11 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 30,
+      "wallTimeMs": 31,
       "providerCalls": 15,
       "coalescedResponses": 15,
       "avoidedProviderCalls": 15,
-      "p50LatencyMs": 10,
+      "p50LatencyMs": 9,
       "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
@@ -191,8 +191,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 20,
-      "estimatedLatencyReduction": 0.9242,
+      "batchedWallTimeMs": 18,
+      "estimatedLatencyReduction": 0.9318,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -304,7 +304,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780169275647,
+            "openedUntil": 1780170548031,
             "halfOpenInFlight": 0
           }
         }
@@ -316,14 +316,14 @@
       "skipped": false,
       "requests": 12,
       "concurrency": 4,
-      "wallTimeMs": 9,
+      "wallTimeMs": 8,
       "providerCalls": 12,
       "totalInputTokens": 480,
       "totalOutputTokens": 288,
       "totalTokens": 768,
-      "outputTokensPerSecond": 32000,
-      "totalTokensPerSecond": 85333.33,
-      "p50LatencyMs": 3,
+      "outputTokensPerSecond": 36000,
+      "totalTokensPerSecond": 96000,
+      "p50LatencyMs": 2,
       "p95LatencyMs": 3,
       "errors": 0,
       "sampleErrors": [],
@@ -385,7 +385,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T19:26:56.151Z",
+        "generatedAt": "2026-05-30T19:48:08.686Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -1552,7 +1552,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
+        "requestId": "req_01KSX6VYX8D03MXH5B74DGAQEA",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1578,7 +1578,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
+        "requestId": "req_01KSX6VYX8D03MXH5B74DGAQEA",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1607,7 +1607,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
+        "requestId": "req_01KSX6VYX8D03MXH5B74DGAQEA",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1635,7 +1635,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
+        "requestId": "req_01KSX6VYX8D03MXH5B74DGAQEA",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1672,15 +1672,15 @@
       "skipped": false,
       "requests": 4,
       "concurrency": 2,
-      "wallTimeMs": 483,
+      "wallTimeMs": 632,
       "providerCalls": 4,
       "totalInputTokens": 240,
-      "totalOutputTokens": 104,
-      "totalTokens": 344,
-      "outputTokensPerSecond": 215.32,
-      "totalTokensPerSecond": 712.22,
-      "p50LatencyMs": 246,
-      "p95LatencyMs": 280,
+      "totalOutputTokens": 108,
+      "totalTokens": 348,
+      "outputTokensPerSecond": 170.89,
+      "totalTokensPerSecond": 550.63,
+      "p50LatencyMs": 308,
+      "p95LatencyMs": 422,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -1738,6 +1738,67 @@
     "aisPlannerChoosesForegroundAndBackgroundActions": true,
     "groqThroughputAvailableWhenRequested": true
   },
+  "verification": [
+    {
+      "area": "replay-benchmark",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all",
+      "proves": [
+        "baseline-vs-optimized cost",
+        "cache reuse",
+        "routing savings"
+      ],
+      "requiredForDemo": true
+    },
+    {
+      "area": "product-readiness",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq",
+      "proves": [
+        "readiness gates",
+        "runtime benchmarks",
+        "policy/verifier/cache evidence"
+      ],
+      "requiredForDemo": true
+    },
+    {
+      "area": "http-gateway-smoke",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787",
+      "proves": [
+        "OpenAI-compatible HTTP shape",
+        "exact cache",
+        "runtime stats"
+      ],
+      "requiredForDemo": true
+    },
+    {
+      "area": "http-admission-control",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787 --admission",
+      "proves": [
+        "priority admission",
+        "load shedding",
+        "foreground protection"
+      ],
+      "requiredForDemo": false
+    },
+    {
+      "area": "semantic-cache-safety",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5",
+      "proves": [
+        "unsafe reuse block",
+        "safe reuse",
+        "threshold selection"
+      ],
+      "requiredForDemo": true
+    },
+    {
+      "area": "verifier-routing",
+      "command": "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing",
+      "proves": [
+        "cheap-then-verify escalation",
+        "missed escalation count"
+      ],
+      "requiredForDemo": true
+    }
+  ],
   "gaps": [
     "Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.",
     "Semantic cache correctness is heuristic; threshold sweep exists, but the adversarial corpus still needs production-scale expansion.",

@@ -460,6 +460,7 @@ async function cmdTokenOpsDemo(args: string[]) {
       compatibility: report.passed.openAICompatibleGatewayShape,
       smokeCommand: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787",
     },
+    verification: report.verification,
     liveProviders: {
       groqMeasured: report.summary.groqLiveMeasured,
     },

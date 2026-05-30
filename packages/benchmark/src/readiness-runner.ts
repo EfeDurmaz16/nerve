@@ -71,7 +71,15 @@ export interface ReadinessBenchmarkReport {
     groqThroughput?: ProviderThroughputResult;
   };
   passed: Record<string, boolean>;
+  verification: VerificationManifestEntry[];
   gaps: string[];
+}
+
+export interface VerificationManifestEntry {
+  area: string;
+  command: string;
+  proves: string[];
+  requiredForDemo: boolean;
 }
 
 export interface AdaptiveRoutingProof {
@@ -331,6 +339,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       groqThroughput,
     },
     passed,
+    verification: buildVerificationManifest(opts.includeGroq === true),
     gaps: [
       "Distributed scheduler state, queueing, and circuit breaker coordination are not implemented.",
       "Semantic cache correctness is heuristic; threshold sweep exists, but the adversarial corpus still needs production-scale expansion.",
@@ -383,11 +392,56 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     "",
     ...Object.entries(report.passed).map(([key, value]) => `- ${key}: ${value}`),
     "",
+    "## Verification Commands",
+    "",
+    ...report.verification.map((entry) => `- ${entry.area}: \`${entry.command}\` (${entry.proves.join(", ")})`),
+    "",
     "## Gaps",
     "",
     ...report.gaps.map((gap) => `- ${gap}`),
     "",
   ].join("\n");
+}
+
+function buildVerificationManifest(includeGroq: boolean): VerificationManifestEntry[] {
+  return [
+    {
+      area: "replay-benchmark",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all",
+      proves: ["baseline-vs-optimized cost", "cache reuse", "routing savings"],
+      requiredForDemo: true,
+    },
+    {
+      area: "product-readiness",
+      command: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof${includeGroq ? " --include-groq" : ""}`,
+      proves: ["readiness gates", "runtime benchmarks", "policy/verifier/cache evidence"],
+      requiredForDemo: true,
+    },
+    {
+      area: "http-gateway-smoke",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787",
+      proves: ["OpenAI-compatible HTTP shape", "exact cache", "runtime stats"],
+      requiredForDemo: true,
+    },
+    {
+      area: "http-admission-control",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787 --admission",
+      proves: ["priority admission", "load shedding", "foreground protection"],
+      requiredForDemo: false,
+    },
+    {
+      area: "semantic-cache-safety",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5",
+      proves: ["unsafe reuse block", "safe reuse", "threshold selection"],
+      requiredForDemo: true,
+    },
+    {
+      area: "verifier-routing",
+      command: "TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing",
+      proves: ["cheap-then-verify escalation", "missed escalation count"],
+      requiredForDemo: true,
+    },
+  ];
 }
 
 async function buildBackgroundTaskProof(): Promise<BackgroundTaskQueueStats> {

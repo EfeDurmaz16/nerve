@@ -190,6 +190,7 @@ describe("tokenops snapshot CLI", () => {
       replay: { estimatedCostReductionPct: number };
       runtime: { loadShedding: { foregroundAdmitted: boolean } };
       gateway: { compatibility: boolean; smokeCommand: string };
+      verification: Array<{ area: string; command: string }>;
     };
 
     expect(result.readyForLocalDemo).toBe(true);
@@ -197,6 +198,7 @@ describe("tokenops snapshot CLI", () => {
     expect(result.runtime.loadShedding.foregroundAdmitted).toBe(true);
     expect(result.gateway.compatibility).toBe(true);
     expect(result.gateway.smokeCommand).toContain("gateway smoke");
+    expect(result.verification.find((entry) => entry.area === "http-gateway-smoke")?.command).toContain("gateway smoke");
   });
 
   it("prints provider arbitrage route from local TokenOps traces", () => {

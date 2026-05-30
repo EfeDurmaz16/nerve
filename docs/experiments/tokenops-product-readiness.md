@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T19:26:56.181Z
+Generated: 2026-05-30T19:48:08.744Z
 
 ## Summary
 
@@ -16,7 +16,7 @@ Generated: 2026-05-30T19:26:56.181Z
 - Load shedding: shed=1, foreground_admitted=true
 - Background tasks: completed=3, failed=0
 - Provider failover: circuit=true, fallback calls=8, failed=0
-- Mock output tokens/sec: 32000
+- Mock output tokens/sec: 36000
 - Groq live measured: true
 - Adaptive routing route: gpt-5.5 -> gpt-5-mini
 - Adaptive routing avoided cost/request: $0.0098
@@ -63,6 +63,15 @@ Generated: 2026-05-30T19:26:56.181Z
 - providerUsageReconciliationDetectsBillingDrift: true
 - aisPlannerChoosesForegroundAndBackgroundActions: true
 - groqThroughputAvailableWhenRequested: true
+
+## Verification Commands
+
+- replay-benchmark: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all` (baseline-vs-optimized cost, cache reuse, routing savings)
+- product-readiness: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq` (readiness gates, runtime benchmarks, policy/verifier/cache evidence)
+- http-gateway-smoke: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787` (OpenAI-compatible HTTP shape, exact cache, runtime stats)
+- http-admission-control: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts gateway smoke --url http://127.0.0.1:8787 --admission` (priority admission, load shedding, foreground protection)
+- semantic-cache-safety: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval --sweep --thresholds 0.2,0.3,0.5` (unsafe reuse block, safe reuse, threshold selection)
+- verifier-routing: `TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing` (cheap-then-verify escalation, missed escalation count)
 
 ## Gaps
 
