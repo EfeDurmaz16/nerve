@@ -555,6 +555,8 @@ export function createApp(opts: { dbPath?: string; db?: DB; state?: AppState } =
     minVerifierPassRate: Number(process.env.TOKENOPS_ROUTING_MIN_VERIFIER_PASS_RATE ?? 0.8),
   }));
   app.get("/routing/slo", async () => learnSloRoutingPolicy(state.traceStore.list(10_000), sloPolicyOptionsFromEnv()));
+  app.get("/routing/slo-impact", async (req) => routingSloImpact(state.traceStore.list(queryInt(req.query, "window_size", "windowSize") ?? 100), req.query));
+  app.get("/routing/model-impact", async (req) => routingModelImpact(state.traceStore.list(queryInt(req.query, "limit") ?? 10_000), req.query));
   app.get("/benchmark/results", async (req) => ({ results: listTokenOpsBenchmarkResults(db, Number((req.query as { limit?: string }).limit ?? 100)) }));
   app.post("/replay", async (req, reply) => {
     const body = (req.body ?? {}) as { dataset?: string; all?: boolean };
@@ -813,6 +815,31 @@ function envBool(name: string, fallback: boolean): boolean {
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
 }
 
+function queryString(query: unknown, ...keys: string[]): string | undefined {
+  if (!isRecord(query)) return undefined;
+  for (const key of keys) {
+    const value = query[key];
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return undefined;
+}
+
+function queryNumber(query: unknown, ...keys: string[]): number | undefined {
+  const value = queryString(query, ...keys);
+  if (value === undefined) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function queryInt(query: unknown, ...keys: string[]): number | undefined {
+  const value = queryNumber(query, ...keys);
+  return value !== undefined && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function round6(value: number): number {
+  return Math.round(value * 1_000_000) / 1_000_000;
+}
+
 function optionalInt(name: string): number | undefined {
   const value = process.env[name];
   if (value === undefined || value === "") return undefined;
@@ -899,6 +926,65 @@ function providerOperationsReport(traces: RequestTrace[]) {
       provider,
       { ...report, slo: slo.providers[provider] },
     ])),
+  };
+}
+
+function routingSloImpact(traces: RequestTrace[], query: unknown) {
+  const windowSize = queryInt(query, "window_size", "windowSize") ?? 100;
+  const policy = learnSloRoutingPolicy(traces, {
+    windowSize,
+    maxErrorRate: queryNumber(query, "max_error_rate", "maxErrorRate") ?? envNumber("TOKENOPS_SLO_MAX_ERROR_RATE", 0.1),
+    maxP95LatencyMs: queryNumber(query, "max_p95_ms", "maxP95Ms", "maxP95LatencyMs") ?? envNumber("TOKENOPS_SLO_MAX_P95_LATENCY_MS", 10_000),
+    maxAverageCostUsd: queryNumber(query, "max_average_cost_usd", "maxAverageCostUsd") ?? envNumber("TOKENOPS_SLO_MAX_AVERAGE_COST_USD", Number.MAX_SAFE_INTEGER),
+  });
+  const candidates = queryString(query, "candidates")?.split(",").map((provider) => provider.trim()).filter(Boolean)
+    ?? Object.keys(policy.providers);
+  const unhealthyProviders = candidates.filter((provider) => policy.providers[provider]?.eligible === false);
+  const eligibleFallbacks = candidates.filter((provider) => policy.providers[provider]?.eligible === true);
+  const impacted = traces.filter((trace) => unhealthyProviders.includes(trace.selectedProvider || trace.routing.selectedProvider));
+  const fallbackProvider = eligibleFallbacks[0];
+  return {
+    windowSize,
+    candidates,
+    unhealthyProviders,
+    eligibleFallbacks,
+    impactedRequests: impacted.length,
+    impactedOptimizedCostUsd: round6(impacted.reduce((sum, trace) => sum + trace.cost.estimatedOptimizedCost, 0)),
+    policy,
+    recommendations: unhealthyProviders.map((provider) => ({
+      provider,
+      action: fallbackProvider ? "reroute" : "warn",
+      fallbackProvider,
+      reason: policy.providers[provider]?.reason ?? "provider has no SLO samples",
+    })),
+  };
+}
+
+function routingModelImpact(traces: RequestTrace[], query: unknown) {
+  const targetModel = queryString(query, "target_model", "targetModel") ?? "gpt-5-mini";
+  const safeWorkload = (workload: string) => /docs_qa|support_faq|classification|extraction|summarization/.test(workload);
+  const opportunities = traces.filter((trace) =>
+    safeWorkload(trace.workloadType) &&
+    !trace.routing.downgraded &&
+    trace.selectedModel !== targetModel &&
+    trace.requestedModel !== targetModel
+  );
+  const recommendations = opportunities.map((trace) => ({
+    traceId: trace.id,
+    workloadType: trace.workloadType,
+    action: "downgrade",
+    originalModel: trace.selectedModel,
+    targetModel,
+    estimatedAvoidableCostUsd: round6(trace.cost.estimatedSavings > 0 ? trace.cost.estimatedSavings : trace.cost.estimatedOptimizedCost * 0.8),
+    reason: "safe workload used a stronger model without a recorded downgrade",
+  }));
+  return {
+    totalRequests: traces.length,
+    targetModel,
+    downgradeOpportunities: opportunities.length,
+    alreadyDowngraded: traces.filter((trace) => trace.routing.downgraded).length,
+    estimatedAvoidableCostUsd: round6(recommendations.reduce((sum, rec) => sum + rec.estimatedAvoidableCostUsd, 0)),
+    recommendations,
   };
 }
 

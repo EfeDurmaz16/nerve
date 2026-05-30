@@ -791,6 +791,55 @@ describe("TokenOps server", () => {
       await app.close();
     });
   });
+
+  it("exposes routing impact analysis over HTTP", async () => {
+    const traces = [
+      {
+        ...serverTrace("groq_error", "groq", "provider_error", 20_000),
+        workloadType: "docs_qa" as const,
+      },
+      {
+        ...serverTrace("groq_slow", "groq", "model", 15_000),
+        workloadType: "docs_qa" as const,
+      },
+      {
+        ...serverTrace("mock_ok", "mock", "model", 30, 0.01, 0),
+        workloadType: "docs_qa" as const,
+        requestedModel: "gpt-5.5",
+        selectedModel: "gpt-5-mini",
+        routing: { selectedProvider: "mock", selectedModel: "gpt-5-mini", originalRequestedModel: "gpt-5.5", downgraded: true, escalated: false, reason: "safe docs qa" },
+      },
+    ];
+    const db = openDb(":memory:");
+    const app = createApp({
+      db,
+      dbPath: ":memory:",
+      state: {
+        exactCache: new (await import("@tokenops/cache")).SqliteExactCache(db),
+        semanticCache: new (await import("@tokenops/cache")).SqliteSemanticCache(db),
+        toolResultCache: new (await import("@tokenops/cache")).SqliteToolResultCache(db),
+        contextBlockCache: new (await import("@tokenops/cache")).SqliteContextBlockCache(db),
+        traceStore: {
+          insert(trace: RequestTrace) { traces.unshift(trace); },
+          get(id: string) { return traces.find((trace) => trace.id === id) ?? null; },
+          list(limit = 100) { return traces.slice(0, limit); },
+          clear() { traces.length = 0; },
+        },
+      },
+    });
+
+    const sloImpact = (await app.inject({ method: "GET", url: "/routing/slo-impact?candidates=groq,mock&max_p95_ms=1000" })).json();
+    expect(sloImpact.unhealthyProviders).toEqual(["groq"]);
+    expect(sloImpact.eligibleFallbacks).toEqual(["mock"]);
+    expect(sloImpact.impactedRequests).toBe(2);
+
+    const modelImpact = (await app.inject({ method: "GET", url: "/routing/model-impact?target_model=gpt-5-mini" })).json();
+    expect(modelImpact.totalRequests).toBe(3);
+    expect(modelImpact.downgradeOpportunities).toBe(2);
+    expect(modelImpact.alreadyDowngraded).toBe(1);
+    expect(modelImpact.recommendations[0]).toMatchObject({ action: "downgrade", targetModel: "gpt-5-mini" });
+    await app.close();
+  });
 });
 
 function serverTrace(

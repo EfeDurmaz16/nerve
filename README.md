@@ -75,6 +75,9 @@ Implemented endpoints:
 - `GET /runtime/stats`
 - `GET /analyze`
 - `GET /routing/policy`
+- `GET /routing/slo`
+- `GET /routing/slo-impact`
+- `GET /routing/model-impact`
 - `GET /providers/health`
 
 `POST /replay` runs local benchmark datasets through the baseline-vs-optimized TokenOps runner and stores results in SQLite.

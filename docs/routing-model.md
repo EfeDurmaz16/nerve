@@ -79,11 +79,14 @@ The HTTP endpoint:
 
 ```text
 GET /routing/slo
+GET /routing/slo-impact?candidates=groq,mock&max_p95_ms=1000
+GET /routing/model-impact?target_model=gpt-5-mini
 ```
 
-returns the current provider SLO policy.
+returns the current provider SLO policy and ledger-backed impact reports.
 
 The `routing slo-impact` command turns the same local SLO window into an impact report: unhealthy providers, eligible fallback providers, number of impacted local traces, impacted optimized cost, and a concrete `reroute` or `warn` recommendation.
+The model-impact endpoint reports safe-workload downgrade opportunities, already-downgraded request count, estimated avoidable cost, and trace-level target-model recommendations.
 
 ## Provider Health
 
