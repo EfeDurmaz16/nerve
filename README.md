@@ -94,6 +94,7 @@ The repo still ships the legacy `nerve` CLI. TokenOps commands are available thr
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts proof --include-groq
@@ -104,6 +105,8 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare groq
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts compare openai
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing slo
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts providers health
@@ -117,6 +120,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops replay --all`
 - `tokenops load`
 - `tokenops batch`
+- `tokenops failover`
 - `tokenops throughput [mock|ollama|groq]`
 - `tokenops proof`
 - `tokenops doctor`
@@ -124,6 +128,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops trace <id>`
 - `tokenops cache stats`
 - `tokenops cache clear`
+- `tokenops cache eval [dataset]`
 - `tokenops analyze`
 - `tokenops analyze --trace <id>`
 - `tokenops budget status`
@@ -132,6 +137,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops providers health`
 - `tokenops verify eval`
 - `tokenops verify eval --dataset <jsonl>`
+- `tokenops verify routing [dataset]`
 - `tokenops compare groq`
 - `tokenops compare openai`
 - `tokenops smoke ollama`
@@ -181,6 +187,17 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch \
 
 This simulates provider-side batching economics: fixed per-call overhead plus per-item work. It reports batch count, largest batch, average batch size, baseline wall time, batched wall time, and estimated latency reduction.
 
+Provider failover benchmark:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover \
+  --requests 12 \
+  --primary-failures-before-success 12 \
+  --circuit-failure-threshold 2
+```
+
+This proves the local inference runtime opens the primary provider circuit after repeated failures, bypasses the broken provider, and recovers every request through a fallback provider. The report includes primary calls, fallback calls, circuit-rejected requests, failed responses, and runtime circuit state.
+
 Provider throughput benchmark:
 
 ```bash
@@ -214,6 +231,16 @@ This writes:
 - `docs/experiments/tokenops-product-readiness.md`
 
 The report combines replay savings, runtime coalescing, micro-batching, mock throughput, optional live Groq throughput, pass/fail gates, and known gaps.
+
+Safety/eval gates:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
+```
+
+`cache eval` runs adversarial semantic-cache cases and reports false unsafe hits and safe misses. `verify routing` runs cheap-then-verify regression cases and reports expected escalations, false escalations, and missed escalations.
 
 Local setup doctor:
 
@@ -262,6 +289,8 @@ Production-like:
 - verifier pass-rate gated adaptive routing
 - provider health scoring from traces
 - verifier eval harness with confusion metrics
+- cheap-then-verify routing benchmark with false/missed escalation counts
+- semantic-cache safety eval with adversarial cache-reuse fixtures
 - env-configurable max request cost, daily budget, daily user/agent quota, per-minute rate limit, and agent loop limiter
 - provider failure traces with redaction for common API key and authorization formats
 - inference runtime with concurrency admission, bounded queueing, provider circuit breaker, provider timeout aborts, and in-flight request coalescing
@@ -286,7 +315,7 @@ Roadmap:
 - real OpenAI/Anthropic/Gemini/Ollama/vLLM adapters
 - embedding-backed semantic cache
 - redaction policy hooks
-- eval-backed cache safety
+- larger eval-backed cache safety corpus
 - OTel/Langfuse export
 - signed receipts via FIDES-style evidence chain
 

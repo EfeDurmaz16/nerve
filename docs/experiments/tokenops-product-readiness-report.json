@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T15:56:20.133Z",
+  "generatedAt": "2026-05-30T15:59:03.940Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -9,7 +9,7 @@
     "estimatedReplayCostReductionPct": 95.6,
     "runtimeAvoidedProviderCalls": 18,
     "batchingLatencyReductionPct": 0.9,
-    "mockOutputTokensPerSecond": 8000,
+    "mockOutputTokensPerSecond": 4363.64,
     "groqLiveMeasured": true
   },
   "evidence": {
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 33,
+      "wallTimeMs": 36,
       "providerCalls": 12,
       "coalescedResponses": 18,
       "avoidedProviderCalls": 18,
-      "p50LatencyMs": 10,
-      "p95LatencyMs": 11,
+      "p50LatencyMs": 11,
+      "p95LatencyMs": 12,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -189,8 +189,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 19,
-      "estimatedLatencyReduction": 0.928,
+      "batchedWallTimeMs": 18,
+      "estimatedLatencyReduction": 0.9318,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -215,8 +215,8 @@
       "circuitRejectedRequests": 6,
       "fallbackRecoveries": 8,
       "circuitOpened": true,
-      "p50LatencyMs": 2,
-      "p95LatencyMs": 3,
+      "p50LatencyMs": 1,
+      "p95LatencyMs": 2,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 1,
@@ -236,7 +236,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780156639440,
+            "openedUntil": 1780156803069,
             "halfOpenInFlight": 0
           }
         }
@@ -248,15 +248,15 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 6,
+      "wallTimeMs": 11,
       "providerCalls": 2,
       "totalInputTokens": 80,
       "totalOutputTokens": 48,
       "totalTokens": 128,
-      "outputTokensPerSecond": 8000,
-      "totalTokensPerSecond": 21333.33,
-      "p50LatencyMs": 3,
-      "p95LatencyMs": 3,
+      "outputTokensPerSecond": 4363.64,
+      "totalTokensPerSecond": 11636.36,
+      "p50LatencyMs": 7,
+      "p95LatencyMs": 7,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -516,7 +516,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
+        "requestId": "req_01KSWSRG84XW4ZGNQQYTAK7NPW",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -542,7 +542,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
+        "requestId": "req_01KSWSRG84XW4ZGNQQYTAK7NPW",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -571,7 +571,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
+        "requestId": "req_01KSWSRG84XW4ZGNQQYTAK7NPW",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -599,7 +599,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSWSKG943R5PGB8KXJ6XR6MC",
+        "requestId": "req_01KSWSRG84XW4ZGNQQYTAK7NPW",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -636,15 +636,15 @@
       "skipped": false,
       "requests": 2,
       "concurrency": 1,
-      "wallTimeMs": 638,
+      "wallTimeMs": 808,
       "providerCalls": 2,
       "totalInputTokens": 120,
-      "totalOutputTokens": 52,
-      "totalTokens": 172,
-      "outputTokensPerSecond": 81.5,
-      "totalTokensPerSecond": 269.59,
-      "p50LatencyMs": 421,
-      "p95LatencyMs": 421,
+      "totalOutputTokens": 54,
+      "totalTokens": 174,
+      "outputTokensPerSecond": 66.83,
+      "totalTokensPerSecond": 215.35,
+      "p50LatencyMs": 623,
+      "p95LatencyMs": 623,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {

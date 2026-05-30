@@ -61,6 +61,7 @@ Run benchmark:
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts replay --all
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load --requests 40 --concurrency 10 --duplicate-ratio 0.5
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts batch --requests 32 --batch-size 8
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover --requests 12
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput mock --requests 24 --concurrency 6
 ```
 
@@ -77,6 +78,17 @@ For hosted inference throughput with the Groq key in `.env`:
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts throughput groq --requests 4 --concurrency 2
 ```
+
+Run a provider failover benchmark:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts failover \
+  --requests 12 \
+  --primary-failures-before-success 12 \
+  --circuit-failure-threshold 2
+```
+
+This opens the synthetic primary provider circuit after repeated failures and verifies fallback recovery without failed responses.
 
 Generate a product-readiness proof report:
 
@@ -118,7 +130,16 @@ Run verifier eval:
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify eval --dataset benchmark/verifier/basic.jsonl
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify routing
 ```
+
+Run semantic-cache safety eval:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts cache eval
+```
+
+`verify routing` checks cheap-then-verify escalation behavior. `cache eval` checks adversarial semantic-cache reuse cases and fails on unsafe cache hits or safe cache misses.
 
 Print the learned routing policy from local traces:
 
