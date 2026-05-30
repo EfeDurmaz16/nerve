@@ -117,6 +117,21 @@ describe("tokenops snapshot CLI", () => {
     expect(result.recommendedThreshold).not.toBeNull();
   });
 
+  it("runs load-shedding proof from the CLI", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-load-shedding-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+
+    const result = JSON.parse(execTokenOps(["load-shedding"], dbPath)) as {
+      foregroundAdmitted: boolean;
+      shedBackgroundRequests: number;
+      passed: boolean;
+    };
+
+    expect(result.foregroundAdmitted).toBe(true);
+    expect(result.shedBackgroundRequests).toBeGreaterThan(0);
+    expect(result.passed).toBe(true);
+  });
+
   it("prints provider arbitrage route from local TokenOps traces", () => {
     const dir = mkdtempSync(join(tmpdir(), "tokenops-arbitrage-cli-"));
     const dbPath = join(dir, "tokenops.db");

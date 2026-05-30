@@ -95,8 +95,22 @@ The benchmark generates concurrent OpenAI-style requests against the local runti
 - scheduler stats
 - circuit state
 
-The product-readiness proof also includes a deterministic priority scheduling
-check showing that foreground inference jumps ahead of queued background work.
+The product-readiness proof also includes deterministic priority scheduling and
+load-shedding checks. Priority scheduling shows that foreground inference jumps
+ahead of queued background work. Load shedding shows that when the local
+inference queue is saturated, TokenOps can drop queued low-priority background
+work and admit a higher-priority foreground request instead of letting agent
+maintenance work starve the user path.
+
+Run the local load-shedding proof:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load-shedding
+```
+
+The output reports whether foreground inference was admitted, how many queued
+background requests were shed, whether any background work accidentally ran, and
+the final scheduler stats.
 
 ## Background Task Queue
 

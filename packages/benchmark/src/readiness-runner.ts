@@ -17,6 +17,7 @@ import { runLoadBenchmark, type LoadBenchmarkResult } from "./load-runner.js";
 import { runProviderSloBenchmark, type ProviderSloBenchmarkResult } from "./provider-slo-runner.js";
 import { runProviderThroughputBenchmark, type ProviderThroughputResult } from "./provider-throughput-runner.js";
 import { runPrioritySchedulingBenchmark, type PrioritySchedulingBenchmarkResult } from "./priority-scheduling-runner.js";
+import { runLoadSheddingBenchmark, type LoadSheddingBenchmarkResult } from "./load-shedding-runner.js";
 import { runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep, type SemanticSafetyBenchmarkResult, type SemanticThresholdSweepResult } from "./semantic-safety-runner.js";
 import { runCheapThenVerifyBenchmark, type CheapThenVerifyBenchmarkResult } from "./verifier-routing-runner.js";
 
@@ -48,6 +49,7 @@ export interface ReadinessBenchmarkReport {
     runtimeCoalescing: LoadBenchmarkResult;
     microBatching: BatchBenchmarkResult;
     priorityScheduling: PrioritySchedulingBenchmarkResult;
+    loadShedding: LoadSheddingBenchmarkResult;
     backgroundTasks: BackgroundTaskQueueStats;
     providerFailover: ProviderFailoverBenchmarkResult;
     mockThroughput: ProviderThroughputResult;
@@ -192,6 +194,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     perItemLatencyMs: 1,
   });
   const priorityScheduling = await runPrioritySchedulingBenchmark();
+  const loadShedding = await runLoadSheddingBenchmark();
   const backgroundTasks = await buildBackgroundTaskProof();
   const providerFailover = await runProviderFailoverBenchmark({
     requests: 8,
@@ -238,6 +241,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
     runtimeCoalescingAvoidsCalls: runtimeCoalescing.avoidedProviderCalls > 0,
     microBatchingReducesLatency: microBatching.estimatedLatencyReduction > 0,
     prioritySchedulingProtectsForegroundInference: priorityScheduling.passed && priorityScheduling.foregroundStartedBeforeBackground,
+    loadSheddingProtectsForegroundInference: loadShedding.passed && loadShedding.foregroundAdmitted && loadShedding.shedBackgroundRequests > 0,
     backgroundTaskQueueExecutesAisTasks:
       backgroundTasks.completedByTask.verify_cached_answer === 1 &&
       backgroundTasks.completedByTask.compress_trace === 1 &&
@@ -305,6 +309,7 @@ export async function runReadinessBenchmark(opts: ReadinessBenchmarkOptions = {}
       runtimeCoalescing,
       microBatching,
       priorityScheduling,
+      loadShedding,
       backgroundTasks,
       providerFailover,
       mockThroughput,
@@ -352,6 +357,7 @@ export function formatReadinessMarkdown(report: ReadinessBenchmarkReport): strin
     `- Runtime avoided provider calls: ${report.summary.runtimeAvoidedProviderCalls}`,
     `- Micro-batching latency reduction: ${report.summary.batchingLatencyReductionPct}%`,
     `- Priority scheduling: ${report.evidence.priorityScheduling.executionOrder.join(" -> ")}`,
+    `- Load shedding: shed=${report.evidence.loadShedding.shedBackgroundRequests}, foreground_admitted=${report.evidence.loadShedding.foregroundAdmitted}`,
     `- Background tasks: completed=${report.evidence.backgroundTasks.completed}, failed=${report.evidence.backgroundTasks.failed}`,
     `- Provider failover: circuit=${report.evidence.providerFailover.circuitOpened}, fallback calls=${report.evidence.providerFailover.fallbackProviderCalls}, failed=${report.evidence.providerFailover.failedResponses}`,
     `- Mock output tokens/sec: ${report.summary.mockOutputTokensPerSecond}`,

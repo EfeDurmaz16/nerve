@@ -19,6 +19,7 @@ import {
   runBatchBenchmark,
   runCheapThenVerifyBenchmark,
   runLoadBenchmark,
+  runLoadSheddingBenchmark,
   runProviderFailoverBenchmark,
   runProviderSloBenchmark,
   runProviderThroughputBenchmark,
@@ -55,6 +56,7 @@ usage:
   tokenops reconcile <usage.jsonl>       reconcile provider usage against local traces
   tokenops prune                         prune local TokenOps evidence by retention counts
   tokenops load                          run local concurrent inference runtime benchmark
+  tokenops load-shedding                 prove foreground admission under saturated queues
   tokenops batch                         run local micro-batching throughput benchmark
   tokenops failover                      run provider circuit-breaker/fallback benchmark
   tokenops throughput [mock|ollama|groq] measure provider throughput and tokens/sec
@@ -120,6 +122,7 @@ async function main() {
     if (cmd === "reconcile") return cmdTokenOpsReconcile(argv.slice(1));
     if (cmd === "prune") return cmdTokenOpsPrune(argv.slice(1));
     if (cmd === "load") return cmdTokenOpsLoad(argv.slice(1));
+    if (cmd === "load-shedding") return cmdTokenOpsLoadShedding();
     if (cmd === "batch") return cmdTokenOpsBatch(argv.slice(1));
     if (cmd === "failover") return cmdTokenOpsFailover(argv.slice(1));
     if (cmd === "throughput") return cmdTokenOpsThroughput(argv.slice(1));
@@ -278,6 +281,12 @@ async function cmdTokenOpsLoad(args: string[]) {
     maxQueue: Number(getOpt(args, "--max-queue") ?? 100),
   });
   console.log(JSON.stringify(result, null, 2));
+}
+
+async function cmdTokenOpsLoadShedding() {
+  const result = await runLoadSheddingBenchmark();
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.passed) process.exit(1);
 }
 
 async function cmdTokenOpsBatch(args: string[]) {

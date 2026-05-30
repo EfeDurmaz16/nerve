@@ -11,6 +11,7 @@ export interface SchedulerStats {
   queuedByPriority: Record<string, number>;
   admitted: number;
   rejected: number;
+  shed: number;
   completed: number;
 }
 
@@ -33,12 +34,20 @@ export class QueueFullError extends Error {
   }
 }
 
+export class QueueShedError extends Error {
+  constructor(readonly priority: number) {
+    super(`inference queued work shed for higher-priority request (priority ${priority})`);
+    this.name = "QueueShedError";
+  }
+}
+
 export class InferenceScheduler {
   private readonly maxConcurrent: number;
   private readonly maxQueue: number;
   private inFlight = 0;
   private admitted = 0;
   private rejected = 0;
+  private shed = 0;
   private completed = 0;
   private sequence = 0;
   private readonly queue: Array<QueuedJob<unknown>> = [];
@@ -49,15 +58,19 @@ export class InferenceScheduler {
   }
 
   execute<T>(run: () => Promise<T>, opts: InferenceSchedulerExecuteOptions = {}): Promise<T> {
+    const priority = normalizePriority(opts.priority);
     if (this.inFlight < this.maxConcurrent) {
+      this.admitted += 1;
       return this.start(run);
     }
     if (this.queue.length >= this.maxQueue) {
-      this.rejected += 1;
-      return Promise.reject(new QueueFullError(this.maxQueue));
+      const shed = this.shedLowerPriorityJob(priority);
+      if (!shed) {
+        this.rejected += 1;
+        return Promise.reject(new QueueFullError(this.maxQueue));
+      }
     }
     this.admitted += 1;
-    const priority = normalizePriority(opts.priority);
     return new Promise<T>((resolve, reject) => {
       this.queue.push({
         run,
@@ -78,13 +91,13 @@ export class InferenceScheduler {
       queuedByPriority: this.queuedByPriority(),
       admitted: this.admitted,
       rejected: this.rejected,
+      shed: this.shed,
       completed: this.completed,
     };
   }
 
   private async start<T>(run: () => Promise<T>): Promise<T> {
     this.inFlight += 1;
-    this.admitted += 1;
     try {
       return await run();
     } finally {
@@ -111,6 +124,24 @@ export class InferenceScheduler {
       }
     }
     return this.queue.splice(bestIndex, 1)[0]!;
+  }
+
+  private shedLowerPriorityJob(incomingPriority: number): boolean {
+    if (this.queue.length === 0) return false;
+    let lowestIndex = 0;
+    for (let index = 1; index < this.queue.length; index += 1) {
+      const current = this.queue[index]!;
+      const lowest = this.queue[lowestIndex]!;
+      if (current.priority < lowest.priority || (current.priority === lowest.priority && current.sequence > lowest.sequence)) {
+        lowestIndex = index;
+      }
+    }
+    const lowest = this.queue[lowestIndex]!;
+    if (incomingPriority <= lowest.priority) return false;
+    const [removed] = this.queue.splice(lowestIndex, 1);
+    this.shed += 1;
+    removed!.reject(new QueueShedError(incomingPriority));
+    return true;
   }
 
   private queuedByPriority(): Record<string, number> {

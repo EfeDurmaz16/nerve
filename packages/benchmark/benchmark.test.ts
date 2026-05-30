@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runPrioritySchedulingBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep } from "./src/index.js";
+import { replayDataset, runBatchBenchmark, runCheapThenVerifyBenchmark, runLoadBenchmark, runLoadSheddingBenchmark, runPrioritySchedulingBenchmark, runProviderFailoverBenchmark, runProviderSloBenchmark, runProviderThroughputBenchmark, runReadinessBenchmark, runSemanticCacheSafetyBenchmark, runSemanticCacheThresholdSweep } from "./src/index.js";
 
 describe("TokenOps benchmark", () => {
   it("reports required replay metrics", async () => {
@@ -67,6 +67,15 @@ describe("TokenOps benchmark", () => {
     const result = await runPrioritySchedulingBenchmark();
     expect(result.executionOrder).toEqual(["foreground", "background-1", "background-2"]);
     expect(result.foregroundStartedBeforeBackground).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it("measures runtime load shedding that protects foreground inference", async () => {
+    const result = await runLoadSheddingBenchmark();
+    expect(result.shedBackgroundRequests).toBeGreaterThan(0);
+    expect(result.foregroundAdmitted).toBe(true);
+    expect(result.backgroundExecuted).toBe(false);
+    expect(result.executionOrder).toEqual(["blocker", "foreground"]);
     expect(result.passed).toBe(true);
   });
 
@@ -183,6 +192,9 @@ describe("TokenOps benchmark", () => {
     expect(report.evidence.microBatching.estimatedLatencyReduction).toBeGreaterThan(0);
     expect(report.evidence.priorityScheduling.foregroundStartedBeforeBackground).toBe(true);
     expect(report.passed.prioritySchedulingProtectsForegroundInference).toBe(true);
+    expect(report.evidence.loadShedding.shedBackgroundRequests).toBeGreaterThan(0);
+    expect(report.evidence.loadShedding.foregroundAdmitted).toBe(true);
+    expect(report.passed.loadSheddingProtectsForegroundInference).toBe(true);
     expect(report.evidence.backgroundTasks.completedByTask.verify_cached_answer).toBe(1);
     expect(report.evidence.backgroundTasks.completedByTask.compress_trace).toBe(1);
     expect(report.passed.backgroundTaskQueueExecutesAisTasks).toBe(true);

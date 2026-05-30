@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-30T19:20:11.917Z",
+  "generatedAt": "2026-05-30T19:26:56.181Z",
   "summary": {
     "readyForLocalDemo": true,
     "totalReplayRequests": 16,
@@ -152,12 +152,12 @@
       "concurrency": 10,
       "duplicateRatio": 0.75,
       "providerLatencyMs": 8,
-      "wallTimeMs": 27,
+      "wallTimeMs": 30,
       "providerCalls": 15,
       "coalescedResponses": 15,
       "avoidedProviderCalls": 15,
-      "p50LatencyMs": 9,
-      "p95LatencyMs": 10,
+      "p50LatencyMs": 10,
+      "p95LatencyMs": 11,
       "runtime": {
         "scheduler": {
           "maxConcurrent": 10,
@@ -167,6 +167,7 @@
           "queuedByPriority": {},
           "admitted": 15,
           "rejected": 0,
+          "shed": 0,
           "completed": 15
         },
         "coalescer": {
@@ -190,8 +191,8 @@
       "perBatchOverheadMs": 10,
       "perItemLatencyMs": 1,
       "baselineWallTimeMs": 264,
-      "batchedWallTimeMs": 17,
-      "estimatedLatencyReduction": 0.9356,
+      "batchedWallTimeMs": 20,
+      "estimatedLatencyReduction": 0.9242,
       "batches": 4,
       "largestBatch": 6,
       "averageBatchSize": 6,
@@ -219,6 +220,30 @@
       "passed": true,
       "reason": "foreground inference with higher priority ran before queued background work"
     },
+    "loadShedding": {
+      "maxConcurrent": 1,
+      "maxQueue": 1,
+      "foregroundAdmitted": true,
+      "backgroundExecuted": false,
+      "shedBackgroundRequests": 1,
+      "rejectedForegroundRequests": 0,
+      "executionOrder": [
+        "blocker",
+        "foreground"
+      ],
+      "runtime": {
+        "maxConcurrent": 1,
+        "maxQueue": 1,
+        "inFlight": 0,
+        "queued": 0,
+        "queuedByPriority": {},
+        "admitted": 3,
+        "rejected": 0,
+        "shed": 1,
+        "completed": 2
+      },
+      "passed": true
+    },
     "backgroundTasks": {
       "total": 3,
       "queued": 0,
@@ -239,8 +264,9 @@
         "inFlight": 0,
         "queued": 0,
         "queuedByPriority": {},
-        "admitted": 5,
+        "admitted": 3,
         "rejected": 0,
+        "shed": 0,
         "completed": 3
       }
     },
@@ -266,6 +292,7 @@
           "queuedByPriority": {},
           "admitted": 2,
           "rejected": 0,
+          "shed": 0,
           "completed": 2
         },
         "coalescer": {
@@ -277,7 +304,7 @@
           "primary": {
             "state": "open",
             "failures": 2,
-            "openedUntil": 1780168871420,
+            "openedUntil": 1780169275647,
             "halfOpenInFlight": 0
           }
         }
@@ -309,6 +336,7 @@
           "queuedByPriority": {},
           "admitted": 12,
           "rejected": 0,
+          "shed": 0,
           "completed": 12
         },
         "coalescer": {
@@ -357,7 +385,7 @@
       "unhealthyProviderP95LatencyMs": 18000,
       "fallbackProviderP95LatencyMs": 35,
       "policy": {
-        "generatedAt": "2026-05-30T19:20:11.884Z",
+        "generatedAt": "2026-05-30T19:26:56.151Z",
         "windowSize": 100,
         "maxErrorRate": 0.1,
         "maxP95LatencyMs": 1000,
@@ -1524,7 +1552,7 @@
     },
     "aisPlanner": {
       "exactCachePlan": {
-        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
+        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
         "foregroundAction": "serve_exact_cache",
         "backgroundTasks": [],
         "modelRoute": {
@@ -1550,7 +1578,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "semanticCachePlan": {
-        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
+        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
         "foregroundAction": "serve_semantic_cache",
         "backgroundTasks": [
           "verify_cached_answer"
@@ -1579,7 +1607,7 @@
         "reason": "budget policy allowed request; docs Q&A can use cheaper model with fallback"
       },
       "budgetBlockPlan": {
-        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
+        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
         "foregroundAction": "block_budget",
         "backgroundTasks": [
           "evaluate_quality"
@@ -1607,7 +1635,7 @@
         "reason": "request exceeded max_request_cost_usd; docs Q&A can use cheaper model with fallback"
       },
       "repeatedContextPlan": {
-        "requestId": "req_01KSX58SCD0N796WS03C18SP53",
+        "requestId": "req_01KSX5N45NV1VRQAR77R8F19FV",
         "foregroundAction": "call_model",
         "backgroundTasks": [
           "evaluate_quality",
@@ -1644,15 +1672,15 @@
       "skipped": false,
       "requests": 4,
       "concurrency": 2,
-      "wallTimeMs": 444,
+      "wallTimeMs": 483,
       "providerCalls": 4,
       "totalInputTokens": 240,
-      "totalOutputTokens": 106,
-      "totalTokens": 346,
-      "outputTokensPerSecond": 238.74,
-      "totalTokensPerSecond": 779.28,
-      "p50LatencyMs": 241,
-      "p95LatencyMs": 268,
+      "totalOutputTokens": 104,
+      "totalTokens": 344,
+      "outputTokensPerSecond": 215.32,
+      "totalTokensPerSecond": 712.22,
+      "p50LatencyMs": 246,
+      "p95LatencyMs": 280,
       "errors": 0,
       "sampleErrors": [],
       "runtime": {
@@ -1664,6 +1692,7 @@
           "queuedByPriority": {},
           "admitted": 4,
           "rejected": 0,
+          "shed": 0,
           "completed": 4
         },
         "coalescer": {
@@ -1688,6 +1717,7 @@
     "runtimeCoalescingAvoidsCalls": true,
     "microBatchingReducesLatency": true,
     "prioritySchedulingProtectsForegroundInference": true,
+    "loadSheddingProtectsForegroundInference": true,
     "backgroundTaskQueueExecutesAisTasks": true,
     "runtimeCircuitBreakerFallsBackAfterPrimaryFailures": true,
     "mockThroughputMeasured": true,

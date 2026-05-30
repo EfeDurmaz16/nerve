@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BackgroundTaskQueue, CircuitBreaker, CircuitOpenError, InferenceRuntime, InferenceScheduler, MicroBatcher, QueueFullError } from "./src/index.js";
+import { BackgroundTaskQueue, CircuitBreaker, CircuitOpenError, InferenceRuntime, InferenceScheduler, MicroBatcher, QueueFullError, QueueShedError } from "./src/index.js";
 
 describe("TokenOps inference runtime", () => {
   it("opens circuit after repeated provider failures and half-opens after cooldown", () => {
@@ -55,6 +55,33 @@ describe("TokenOps inference runtime", () => {
     await expect(Promise.all([slow, low, high])).resolves.toEqual(["slow", "low", "high"]);
     expect(order).toEqual(["slow", "high", "low"]);
     expect(scheduler.stats().queuedByPriority).toEqual({});
+  });
+
+  it("sheds queued background inference to admit foreground work under saturation", async () => {
+    const scheduler = new InferenceScheduler({ maxConcurrent: 1, maxQueue: 1 });
+    const order: string[] = [];
+    let release!: () => void;
+    const blocker = scheduler.execute(() => new Promise<string>((resolve) => {
+      release = () => {
+        order.push("blocker");
+        resolve("blocker");
+      };
+    }), { priority: 0 });
+    const background = scheduler.execute(async () => {
+      order.push("background");
+      return "background";
+    }, { priority: -10 });
+    const foreground = scheduler.execute(async () => {
+      order.push("foreground");
+      return "foreground";
+    }, { priority: 100 });
+
+    await expect(background).rejects.toThrow(QueueShedError);
+    release();
+    await expect(blocker).resolves.toBe("blocker");
+    await expect(foreground).resolves.toBe("foreground");
+    expect(order).toEqual(["blocker", "foreground"]);
+    expect(scheduler.stats()).toMatchObject({ shed: 1, rejected: 0, queued: 0 });
   });
 
   it("coalesces identical in-flight inference work", async () => {

@@ -279,6 +279,12 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts policy simulate \
   --max-request-cost-usd 0.01
 ```
 
+Prove foreground protection under saturated local inference queues:
+
+```bash
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts load-shedding
+```
+
 Tune the local inference runtime:
 
 ```bash

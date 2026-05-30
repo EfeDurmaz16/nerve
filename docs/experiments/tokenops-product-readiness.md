@@ -1,6 +1,6 @@
 # TokenOps Product Readiness Proof
 
-Generated: 2026-05-30T19:20:11.917Z
+Generated: 2026-05-30T19:26:56.181Z
 
 ## Summary
 
@@ -13,6 +13,7 @@ Generated: 2026-05-30T19:20:11.917Z
 - Runtime avoided provider calls: 15
 - Micro-batching latency reduction: 0.9%
 - Priority scheduling: foreground -> background-1 -> background-2
+- Load shedding: shed=1, foreground_admitted=true
 - Background tasks: completed=3, failed=0
 - Provider failover: circuit=true, fallback calls=8, failed=0
 - Mock output tokens/sec: 32000
@@ -42,6 +43,7 @@ Generated: 2026-05-30T19:20:11.917Z
 - runtimeCoalescingAvoidsCalls: true
 - microBatchingReducesLatency: true
 - prioritySchedulingProtectsForegroundInference: true
+- loadSheddingProtectsForegroundInference: true
 - backgroundTaskQueueExecutesAisTasks: true
 - runtimeCircuitBreakerFallsBackAfterPrimaryFailures: true
 - mockThroughputMeasured: true
