@@ -17,9 +17,12 @@ TokenOps can learn a local routing policy from request traces:
 
 ```bash
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing policy
+TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts routing model-impact --target-model gpt-5-mini
 ```
 
 The learned policy groups traces by workload type, risk level, provider, and selected model. For each workload/risk bucket, it selects the lowest average optimized cost route with enough samples and an acceptable verifier pass-rate.
+
+`routing model-impact` turns the same ledger into a downgrade opportunity report: safe workloads that still used a stronger model, already-downgraded request count, estimated avoidable cost, and concrete target-model recommendations.
 
 Enable runtime application:
 

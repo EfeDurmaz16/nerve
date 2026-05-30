@@ -76,6 +76,7 @@ usage:
   tokenops routing slo                   learn and print provider SLO policy from local traces
   tokenops routing slo-benchmark         run synthetic SLO rerouting benchmark
   tokenops routing slo-impact            estimate impact of unhealthy providers in local traces
+  tokenops routing model-impact          estimate model downgrade opportunities in local traces
   tokenops routing arbitrage             choose cheapest healthy provider from local traces
   tokenops providers health              score provider health from local traces
   tokenops providers attempts            list provider call attempts from local DB
@@ -147,6 +148,7 @@ async function main() {
     if (cmd === "routing" && argv[1] === "slo") return cmdTokenOpsRoutingSlo();
     if (cmd === "routing" && argv[1] === "slo-benchmark") return cmdTokenOpsRoutingSloBenchmark();
     if (cmd === "routing" && argv[1] === "slo-impact") return cmdTokenOpsRoutingSloImpact(argv.slice(2));
+    if (cmd === "routing" && argv[1] === "model-impact") return cmdTokenOpsRoutingModelImpact(argv.slice(2));
     if (cmd === "routing" && argv[1] === "arbitrage") return cmdTokenOpsRoutingArbitrage(argv.slice(2));
     if (cmd === "providers" && argv[1] === "health") return cmdTokenOpsProvidersHealth(argv.slice(2));
     if (cmd === "providers" && argv[1] === "attempts") return cmdTokenOpsProvidersAttempts(argv.slice(2));
@@ -616,6 +618,39 @@ function cmdTokenOpsRoutingSloImpact(args: string[]) {
       fallbackProvider,
       reason: policy.providers[provider]?.reason ?? "provider has no SLO samples",
     })),
+  }, null, 2));
+}
+
+function cmdTokenOpsRoutingModelImpact(args: string[]) {
+  const db = openDb(DB_PATH);
+  const store = new SqliteTraceStore(db);
+  const limit = Number(getOpt(args, "--limit") ?? 10_000);
+  const targetModel = getOpt(args, "--target-model") ?? "gpt-5-mini";
+  const traces = store.list(limit);
+  const safeWorkload = (workload: string) => /docs_qa|support_faq|classification|extraction|summarization/.test(workload);
+  const opportunities = traces.filter((trace) =>
+    safeWorkload(trace.workloadType) &&
+    !trace.routing.downgraded &&
+    trace.selectedModel !== targetModel &&
+    trace.requestedModel !== targetModel,
+  );
+  const alreadyDowngraded = traces.filter((trace) => trace.routing.downgraded).length;
+  const recommendations = opportunities.map((trace) => ({
+    traceId: trace.id,
+    workloadType: trace.workloadType,
+    action: "downgrade",
+    originalModel: trace.selectedModel,
+    targetModel,
+    estimatedAvoidableCostUsd: round6(trace.cost.estimatedSavings > 0 ? trace.cost.estimatedSavings : trace.cost.estimatedOptimizedCost * 0.8),
+    reason: "safe workload used a stronger model without a recorded downgrade",
+  }));
+  console.log(JSON.stringify({
+    totalRequests: traces.length,
+    targetModel,
+    downgradeOpportunities: opportunities.length,
+    alreadyDowngraded,
+    estimatedAvoidableCostUsd: round6(recommendations.reduce((sum, rec) => sum + rec.estimatedAvoidableCostUsd, 0)),
+    recommendations,
   }, null, 2));
 }
 

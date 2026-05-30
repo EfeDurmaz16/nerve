@@ -173,6 +173,7 @@ Once linked/installed, `apps/cli/bin/tokenops` exposes:
 - `tokenops routing slo`
 - `tokenops routing slo-benchmark`
 - `tokenops routing slo-impact --candidates groq,mock --max-p95-ms 1000`
+- `tokenops routing model-impact [--target-model gpt-5-mini]`
 - `tokenops routing arbitrage --provider <name> --candidates groq,openai,mock`
 - `tokenops providers health`
 - `tokenops providers attempts`

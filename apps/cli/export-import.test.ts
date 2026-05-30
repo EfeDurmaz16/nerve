@@ -390,6 +390,42 @@ describe("tokenops snapshot CLI", () => {
     expect(result.impactedOptimizedCostUsd).toBe(0.02);
     expect(result.recommendations[0]).toMatchObject({ provider: "groq", action: "reroute", fallbackProvider: "mock" });
   });
+
+  it("prints model routing impact from local traces", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tokenops-model-impact-cli-"));
+    const dbPath = join(dir, "tokenops.db");
+    const store = new SqliteTraceStore(openDb(dbPath));
+    store.insert({
+      ...trace("docs_overkill", 0.02, "groq", 50),
+      workloadType: "docs_qa",
+      requestedModel: "gpt-5.5",
+      selectedModel: "gpt-5.5",
+      routing: { selectedProvider: "groq", selectedModel: "gpt-5.5", originalRequestedModel: "gpt-5.5", downgraded: false, escalated: false, reason: "fixture" },
+      cost: { estimatedBaselineCost: 0.02, estimatedOptimizedCost: 0.02, estimatedSavings: 0 },
+    });
+    store.insert({
+      ...trace("docs_downgraded", 0.02, "mock", 40),
+      workloadType: "docs_qa",
+      requestedModel: "gpt-5.5",
+      selectedModel: "gpt-5-mini",
+      routing: { selectedProvider: "mock", selectedModel: "gpt-5-mini", originalRequestedModel: "gpt-5.5", downgraded: true, escalated: false, reason: "safe docs qa" },
+      cost: { estimatedBaselineCost: 0.02, estimatedOptimizedCost: 0.002, estimatedSavings: 0.018 },
+    });
+
+    const result = JSON.parse(execTokenOps(["routing", "model-impact"], dbPath)) as {
+      totalRequests: number;
+      downgradeOpportunities: number;
+      alreadyDowngraded: number;
+      estimatedAvoidableCostUsd: number;
+      recommendations: Array<{ traceId: string; action: string; targetModel: string }>;
+    };
+
+    expect(result.totalRequests).toBe(2);
+    expect(result.downgradeOpportunities).toBe(1);
+    expect(result.alreadyDowngraded).toBe(1);
+    expect(result.estimatedAvoidableCostUsd).toBeGreaterThan(0);
+    expect(result.recommendations[0]).toMatchObject({ traceId: "docs_overkill", action: "downgrade", targetModel: "gpt-5-mini" });
+  });
 });
 
 function execTokenOps(args: string[], dbPath: string): string {
