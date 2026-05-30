@@ -11,6 +11,8 @@
     "build": "pnpm -r --filter './packages/*' --filter './apps/*' build",
     "test": "vitest run",
     "typecheck": "tsc -b",
+    "tokenops:proof": "TOKENOPS_CLI=1 tsx apps/cli/src/index.ts proof",
+    "tokenops:verify": "TOKENOPS_CLI=1 tsx apps/cli/src/index.ts verify readiness --json",
     "demo": "bash scripts/demo.sh",
     "seed": "node --import tsx scripts/seed.ts"
   },

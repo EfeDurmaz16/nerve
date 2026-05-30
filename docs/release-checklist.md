@@ -13,6 +13,13 @@ TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts verify readiness --json
 TOKENOPS_CLI=1 npx tsx apps/cli/src/index.ts doctor
 ```
 
+CI runs the same core proof through:
+
+```bash
+pnpm tokenops:proof
+pnpm tokenops:verify
+```
+
 With `tokenops serve` or `pnpm --filter @nerve/server start` running, also run:
 
 ```bash
